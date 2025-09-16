@@ -8,6 +8,7 @@ import '../models/modal_types.dart';
 import '../services/game_logic_service.dart';
 import '../services/solver_service.dart';
 import '../services/level_progression_service.dart';
+import '../services/interstitial_ad_service.dart';
 import '../utils/color_utils.dart';
 import '../utils/validation_utils.dart';
 import '../widgets/components/ad_banner.dart';
@@ -69,6 +70,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     super.initState();
     _initializeAnimationControllers();
     _startLevel(widget.initialLevel);
+    // Preload interstitial ad for better user experience
+    InterstitialAdService.instance.preloadAd();
   }
 
   void _initializeAnimationControllers() {
@@ -107,6 +110,46 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       _colors = ColorUtils.getColorsForLevel(_gameState.colorNames);
       _solutionShown = false; // Reset solution shown state for new level
     });
+  }
+
+  /// Restart level with interstitial ad (50% probability)
+  Future<void> _restartLevelWithAd(int levelIndex) async {
+    // Try to show interstitial ad with 50% probability
+    final adShown = await InterstitialAdService.instance.showAdWithProbability(
+      onAdDismissed: () {
+        // This callback is called when ad is dismissed
+        _startLevel(levelIndex);
+        // Preload next ad for future use
+        InterstitialAdService.instance.preloadAd();
+      },
+    );
+
+    // If ad was not shown (50% chance), restart immediately
+    if (!adShown) {
+      _startLevel(levelIndex);
+      // Preload next ad for future use
+      InterstitialAdService.instance.preloadAd();
+    }
+  }
+
+  /// Next level with interstitial ad (100% probability - always show)
+  Future<void> _nextLevelWithAd() async {
+    // Show interstitial ad with 100% probability (always show)
+    final adShown = await InterstitialAdService.instance.showAdAlways(
+      onAdDismissed: () {
+        // This callback is called when ad is dismissed
+        _startLevel(_gameState.currentLevel + 1);
+        // Preload next ad for future use
+        InterstitialAdService.instance.preloadAd();
+      },
+    );
+
+    // If ad failed to load, proceed to next level anyway
+    if (!adShown) {
+      _startLevel(_gameState.currentLevel + 1);
+      // Preload next ad for future use
+      InterstitialAdService.instance.preloadAd();
+    }
   }
 
   void _handleColorSelection(String color) {
@@ -157,7 +200,26 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     print('Colors: ${_gameState.colorNames}');
     print('Current step: ${_gameState.currentStep}');
     
-    // Hide button immediately when clicked to prevent multiple clicks
+    // Show interstitial ad first - reward-based system
+    final adShown = await InterstitialAdService.instance.showAdAlways(
+      onAdDismissed: () {
+        // This callback is called when ad is dismissed
+        _executeSolution();
+        // Preload next ad for future use
+        InterstitialAdService.instance.preloadAd();
+      },
+    );
+
+    // If ad failed to load, still provide solution (graceful fallback)
+    if (!adShown) {
+      _executeSolution();
+      // Preload next ad for future use
+      InterstitialAdService.instance.preloadAd();
+    }
+  }
+
+  Future<void> _executeSolution() async {
+    // Hide button immediately when ad is dismissed to prevent multiple clicks
     setState(() {
       _solutionShown = true;
       _solutionAnimating = true;
@@ -263,16 +325,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       
       switch (action) {
         case ModalAction.nextLevel:
-          _startLevel(_gameState.currentLevel + 1);
+          _nextLevelWithAd();
           break;
         case ModalAction.restartLevel:
-          _startLevel(_gameState.currentLevel);
+          _restartLevelWithAd(_gameState.currentLevel);
           break;
         case ModalAction.restartGame:
-          _startLevel(0);
+          _restartLevelWithAd(0);
           break;
         case ModalAction.playAgain:
-          _startLevel(_gameState.currentLevel);
+          _restartLevelWithAd(_gameState.currentLevel);
           break;
         case ModalAction.close:
           // just close
@@ -434,7 +496,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           const Spacer(),
           // Reset button (right) - icon only
           GestureDetector(
-            onTap: () => _startLevel(_gameState.currentLevel),
+            onTap: () => _restartLevelWithAd(_gameState.currentLevel),
             child: Container(
               padding: const EdgeInsets.all(AppConstants.smallSpacing),
               decoration: BoxDecoration(
@@ -475,12 +537,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                '💡',
+                '🎬',
                 style: TextStyle(fontSize: 16),
               ),
               const SizedBox(width: AppConstants.smallSpacing),
               const Text(
-                'Solution',
+                'Watch Ad for Solution',
                 style: TextStyle(
                   fontFamily: AppConstants.primaryFontFamily,
                   fontSize: 14,
