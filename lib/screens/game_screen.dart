@@ -347,6 +347,34 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     widget.onGoHome();
   }
 
+  /// Exit to home with interstitial ad (50% probability)
+  Future<void> _goHomeWithAd() async {
+    // Check if ad is ready first to avoid loading delays
+    if (InterstitialAdService.instance.isAdReady) {
+      // Try to show interstitial ad with 50% probability
+      final adShown = await InterstitialAdService.instance.showAdWithProbability(
+        onAdDismissed: () {
+          // This callback is called when ad is dismissed - exit immediately
+          widget.onGoHome();
+          // Preload next ad for future use
+          InterstitialAdService.instance.preloadAd();
+        },
+      );
+
+      // If ad was not shown (50% chance), exit immediately
+      if (!adShown) {
+        widget.onGoHome();
+        // Preload next ad for future use
+        InterstitialAdService.instance.preloadAd();
+      }
+    } else {
+      // No ad ready, exit immediately without delay
+      widget.onGoHome();
+      // Preload next ad for future use
+      InterstitialAdService.instance.preloadAd();
+    }
+  }
+
   // --- Build Methods ---
 
   @override
@@ -468,7 +496,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         children: [
           // Exit button (left) - back arrow icon only
           GestureDetector(
-            onTap: _goHome,
+            onTap: _goHomeWithAd,
             child: Container(
               padding: const EdgeInsets.all(AppConstants.smallSpacing),
               decoration: BoxDecoration(
