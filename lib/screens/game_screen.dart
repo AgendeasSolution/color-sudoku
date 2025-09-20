@@ -9,6 +9,7 @@ import '../services/game_logic_service.dart';
 import '../services/solver_service.dart';
 import '../services/level_progression_service.dart';
 import '../services/interstitial_ad_service.dart';
+import '../services/rewarded_ad_service.dart';
 import '../utils/color_utils.dart';
 import '../utils/validation_utils.dart';
 import '../widgets/components/ad_banner.dart';
@@ -70,8 +71,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     super.initState();
     _initializeAnimationControllers();
     _startLevel(widget.initialLevel);
-    // Preload interstitial ad for better user experience
+    // Preload ads for better user experience
     InterstitialAdService.instance.preloadAd();
+    RewardedAdService.instance.preloadAd();
   }
 
   void _initializeAnimationControllers() {
@@ -200,13 +202,26 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     print('Colors: ${_gameState.colorNames}');
     print('Current step: ${_gameState.currentStep}');
     
-    // Show interstitial ad first - reward-based system
-    final adShown = await InterstitialAdService.instance.showAdAlways(
+    // Show rewarded ad first - reward-based system
+    final adShown = await RewardedAdService.instance.showAdAlways(
       onAdDismissed: () {
         // This callback is called when ad is dismissed
-        _executeSolution();
+        // Only execute solution if reward was actually earned
+        if (RewardedAdService.instance.wasRewardEarned) {
+          print('Reward earned! Executing solution...');
+          _executeSolution();
+        } else {
+          print('No reward earned. Solution not provided.');
+          // Show message that user needs to watch full ad
+          _showRewardRequiredMessage();
+        }
         // Preload next ad for future use
-        InterstitialAdService.instance.preloadAd();
+        RewardedAdService.instance.preloadAd();
+      },
+      onRewardEarned: () {
+        // This callback is called when user earns reward
+        print('User earned reward for solution!');
+        // Solution will be executed in onAdDismissed callback if reward was earned
       },
     );
 
@@ -214,8 +229,25 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     if (!adShown) {
       _executeSolution();
       // Preload next ad for future use
-      InterstitialAdService.instance.preloadAd();
+      RewardedAdService.instance.preloadAd();
     }
+  }
+
+  void _showRewardRequiredMessage() {
+    // Show a brief message that user needs to watch full ad
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Please watch the full ad to earn the solution!',
+          style: TextStyle(
+            fontFamily: AppConstants.primaryFontFamily,
+            fontWeight: AppConstants.boldWeight,
+          ),
+        ),
+        backgroundColor: AppConstants.warningColor,
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 
   Future<void> _executeSolution() async {
@@ -565,7 +597,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                '🎬',
+                '🎁',
                 style: TextStyle(fontSize: 16),
               ),
               const SizedBox(width: AppConstants.smallSpacing),
