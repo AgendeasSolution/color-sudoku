@@ -34,12 +34,28 @@ class RewardedAdService {
 
   /// Load rewarded ad
   Future<void> loadAd() async {
-    if (_isLoading || _isAdReady) return;
+    if (_isLoading) {
+      print('Ad is already loading, waiting...');
+      // Wait for current loading to complete
+      while (_isLoading) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      return;
+    }
+    
+    if (_isAdReady) {
+      print('Ad is already ready');
+      return;
+    }
 
     _isLoading = true;
-    print('Loading rewarded ad...');
+    _isAdReady = false;
+    print('Loading rewarded ad with ID: $_adUnitId');
 
     try {
+      // Add a small delay to ensure AdMob is fully initialized
+      await Future.delayed(const Duration(milliseconds: 500));
+      
       await RewardedAd.load(
         adUnitId: _adUnitId,
         request: const AdRequest(),
@@ -72,6 +88,7 @@ class RewardedAdService {
             print('Rewarded ad failed to load: $error');
             _isLoading = false;
             _isAdReady = false;
+            _rewardedAd = null;
           },
         ),
       );
@@ -79,6 +96,7 @@ class RewardedAdService {
       print('Error loading rewarded ad: $e');
       _isLoading = false;
       _isAdReady = false;
+      _rewardedAd = null;
     }
   }
 
@@ -87,34 +105,64 @@ class RewardedAdService {
     VoidCallback? onAdDismissed,
     VoidCallback? onRewardEarned,
   }) async {
-    if (!_isAdReady || _rewardedAd == null) {
-      print('Rewarded ad not ready, loading new ad...');
-      await loadAd();
-      return false;
-    }
+    // Try up to 3 times to load and show ad
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      print('Attempt $attempt to show rewarded ad');
+      
+      if (!_isAdReady || _rewardedAd == null) {
+        print('Rewarded ad not ready, loading new ad...');
+        await loadAd();
+        
+        // Wait a bit more for the ad to be fully ready
+        if (_isAdReady && _rewardedAd != null) {
+          await Future.delayed(const Duration(milliseconds: 200));
+        }
+      }
 
-    try {
-      // Reset reward status
-      _rewardEarned = false;
-      
-      // Store the callbacks
-      _onAdDismissedCallback = onAdDismissed;
-      _onRewardEarnedCallback = onRewardEarned;
-      
-      await _rewardedAd!.show(
-        onUserEarnedReward: (ad, reward) {
-          print('User earned reward: ${reward.amount} ${reward.type}');
-          _rewardEarned = true;
-          // Call the reward callback when user earns reward
-          _onRewardEarnedCallback?.call();
-        },
-      );
-      return true;
-    } catch (e) {
-      print('Error showing rewarded ad: $e');
-      _disposeAd();
-      return false;
+      // Check if ad is ready after loading
+      if (!_isAdReady || _rewardedAd == null) {
+        print('Rewarded ad still not ready after loading attempt $attempt');
+        if (attempt < 3) {
+          // Wait before retry
+          await Future.delayed(const Duration(milliseconds: 1000));
+          continue;
+        } else {
+          print('All attempts failed to load rewarded ad');
+          return false;
+        }
+      }
+
+      try {
+        // Reset reward status
+        _rewardEarned = false;
+        
+        // Store the callbacks
+        _onAdDismissedCallback = onAdDismissed;
+        _onRewardEarnedCallback = onRewardEarned;
+        
+        await _rewardedAd!.show(
+          onUserEarnedReward: (ad, reward) {
+            print('User earned reward: ${reward.amount} ${reward.type}');
+            _rewardEarned = true;
+            // Call the reward callback when user earns reward
+            _onRewardEarnedCallback?.call();
+          },
+        );
+        print('Rewarded ad shown successfully on attempt $attempt');
+        return true;
+      } catch (e) {
+        print('Error showing rewarded ad on attempt $attempt: $e');
+        _disposeAd();
+        
+        if (attempt < 3) {
+          // Wait before retry
+          await Future.delayed(const Duration(milliseconds: 1000));
+        }
+      }
     }
+    
+    print('All attempts to show rewarded ad failed');
+    return false;
   }
 
   /// Show rewarded ad with 100% probability (always show for rewards)
@@ -132,7 +180,14 @@ class RewardedAdService {
   /// Preload ad for better user experience
   Future<void> preloadAd() async {
     if (!_isAdReady && !_isLoading) {
+      print('Preloading rewarded ad...');
       await loadAd();
+      
+      // After loading, wait a bit more to ensure it's fully ready
+      if (_isAdReady) {
+        await Future.delayed(const Duration(milliseconds: 300));
+        print('Rewarded ad preloaded and ready');
+      }
     }
   }
 
@@ -141,6 +196,14 @@ class RewardedAdService {
     _rewardedAd?.dispose();
     _rewardedAd = null;
     _isAdReady = false;
+    
+    // Immediately start loading the next ad for better UX
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!_isLoading && !_isAdReady) {
+        print('Auto-preloading next rewarded ad...');
+        preloadAd();
+      }
+    });
   }
 
   /// Dispose service

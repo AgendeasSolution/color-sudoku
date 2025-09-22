@@ -57,6 +57,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   ModalType _activeModal = ModalType.none;
   bool _solutionShown = false;
   bool _solutionAnimating = false;
+  bool _justWatchedSolutionAd = false; // Track if user just watched ad for solution
 
   // Animation Controllers
   late final AnimationController _bgAnimationController;
@@ -111,6 +112,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       _gameState = GameLogicService.initializeGame(levelIndex);
       _colors = ColorUtils.getColorsForLevel(_gameState.colorNames);
       _solutionShown = false; // Reset solution shown state for new level
+      _justWatchedSolutionAd = false; // Reset solution ad flag for new level
     });
   }
 
@@ -209,6 +211,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         // Only execute solution if reward was actually earned
         if (RewardedAdService.instance.wasRewardEarned) {
           print('Reward earned! Executing solution...');
+          // Set flag to indicate user just watched ad for solution
+          _justWatchedSolutionAd = true;
           _executeSolution();
         } else {
           print('No reward earned. Solution not provided.');
@@ -366,7 +370,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           _restartLevelWithAd(0);
           break;
         case ModalAction.playAgain:
-          _restartLevelWithAd(_gameState.currentLevel);
+          // Check if user just watched solution ad - skip interstitial if so
+          if (_justWatchedSolutionAd) {
+            print('User just watched solution ad, skipping interstitial ad for play again');
+            _startLevel(_gameState.currentLevel);
+            _justWatchedSolutionAd = false; // Reset the flag
+          } else {
+            _restartLevelWithAd(_gameState.currentLevel);
+          }
           break;
         case ModalAction.close:
           // just close
