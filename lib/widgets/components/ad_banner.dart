@@ -105,7 +105,7 @@ class _AdBannerState extends State<AdBanner> {
 
     try {
       _bannerAd = BannerAd(
-        adUnitId: widget.adUnitId ?? _testAdUnitId,
+        adUnitId: widget.adUnitId ?? _productionAdUnitId,
         size: AdSize.banner,
         request: const AdRequest(),
         listener: BannerAdListener(
