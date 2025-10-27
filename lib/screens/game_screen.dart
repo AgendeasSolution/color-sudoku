@@ -694,7 +694,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                             ),
                             Flexible(
                               child: Text(
-                                'Solution',
+                                'Watch Ad for Solution',
                                 style: TextStyle(
                                   fontFamily: AppConstants.primaryFontFamily,
                                   fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
