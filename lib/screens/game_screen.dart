@@ -8,6 +8,7 @@ import '../models/modal_types.dart';
 import '../services/game_logic_service.dart';
 import '../services/level_progression_service.dart';
 import '../services/interstitial_ad_service.dart';
+import '../services/audio_service.dart';
 import '../utils/color_utils.dart';
 import '../utils/validation_utils.dart';
 import '../utils/responsive_utils.dart';
@@ -174,6 +175,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _handleColorSelection(String color) {
     if (!ValidationUtils.canPlaceColor(_gameState, color)) {
+      // Play invalid move sound
+      AudioService().playInvalidMove();
+      
       // Trigger animation for the selected color ball only if invalid
       setState(() {
         _animatingColor = color;
@@ -190,6 +194,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       _showInvalidMoveWarning(pos, color);
       return;
     }
+
+    // Play valid move sound
+    AudioService().playValidMove();
 
     setState(() {
       // Save current state to history before making a move
@@ -213,6 +220,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _showSolution() {
+    AudioService().playButtonClick();
+    
     // Try to solve the puzzle
     final solution = GameLogicService.solvePuzzle(_gameState);
 
@@ -262,6 +271,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _playAgain() {
+    AudioService().playButtonClick();
+    
     // Reset the level preserving pre-filled cells
     setState(() {
       _gameState = GameLogicService.resetLevel(_gameState);
@@ -270,6 +281,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _undoMove() {
     if (_gameState.history.isEmpty) return;
+    
+    AudioService().playButtonClick();
     
     setState(() {
       final history = List<GameStateSnapshot>.from(_gameState.history);
@@ -286,6 +299,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _winGame() async {
+    // Play win sound
+    AudioService().playWin();
+    
     setState(() {
       _gameState = _gameState.copyWith(isGameOver: true);
     });
@@ -301,6 +317,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _gameOver() {
+    // Play fail sound
+    AudioService().playFail();
+    
     setState(() {
       _gameState = _gameState.copyWith(isGameOver: true);
     });
@@ -344,6 +363,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _onModalAction(ModalAction action) {
+    // Play button click sound for modal actions
+    AudioService().playButtonClick();
+    
     _hideModal();
     Future.delayed(AppConstants.modalActionDelay, () {
       if (!mounted) return;
@@ -516,7 +538,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         children: [
           // Exit button (left) - back arrow icon only
           GestureDetector(
-            onTap: _goHomeWithAd,
+            onTap: () {
+              AudioService().playButtonClick();
+              _goHomeWithAd();
+            },
             child: Container(
               padding: EdgeInsets.all(
                 ResponsiveUtils.getResponsiveSpacing(context, AppConstants.smallSpacing)
@@ -655,11 +680,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   // Reset button
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => _restartLevelWithAd(_gameState.currentLevel),
+                      onTap: _gameState.history.isEmpty ? null : () {
+                        AudioService().playButtonClick();
+                        _restartLevelWithAd(_gameState.currentLevel);
+                      },
                       child: Container(
                         padding: ResponsiveUtils.getSolutionButtonPadding(context),
                         decoration: BoxDecoration(
-                          color: AppConstants.errorColor,
+                          color: _gameState.history.isEmpty 
+                              ? AppConstants.borderColor.withOpacity(0.5)
+                              : AppConstants.errorColor,
                           borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
                         ),
                         child: Row(
@@ -698,39 +728,37 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   Widget _buildPlayAgainButton() {
     return Center(
-      child: SizedBox(
-        width: double.infinity,
-        child: GestureDetector(
-          onTap: _playAgain,
-          child: Container(
-            padding: ResponsiveUtils.getSolutionButtonPadding(context),
-            decoration: BoxDecoration(
-              color: const Color(0xFFD69E2E), // Gold color
-              borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.refresh,
+      child: GestureDetector(
+        onTap: _playAgain,
+        child: Container(
+          padding: ResponsiveUtils.getSolutionButtonPadding(context),
+          decoration: BoxDecoration(
+            color: const Color(0xFFD69E2E), // Gold color
+            borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.refresh,
+                color: AppConstants.textPrimaryColor,
+                size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
+              ),
+              SizedBox(
+                width: ResponsiveUtils.getResponsiveSpacing(context, 8),
+              ),
+              Text(
+                'Play Again',
+                style: TextStyle(
+                  fontFamily: AppConstants.primaryFontFamily,
+                  fontSize: ResponsiveUtils.getSolutionButtonFontSize(context) * 1.2,
+                  fontWeight: AppConstants.boldWeight,
                   color: AppConstants.textPrimaryColor,
-                  size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
                 ),
-                SizedBox(
-                  width: ResponsiveUtils.getResponsiveSpacing(context, 8),
-                ),
-                Text(
-                  'Play Again',
-                  style: TextStyle(
-                    fontFamily: AppConstants.primaryFontFamily,
-                    fontSize: ResponsiveUtils.getSolutionButtonFontSize(context) * 1.2,
-                    fontWeight: AppConstants.boldWeight,
-                    color: AppConstants.textPrimaryColor,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       ),
@@ -884,8 +912,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.center,
             children: rowColors.map((colorName) {
               final count = _gameState.ballCounts[colorName]!;
-              // Block colors based on availability and validity
-              final isEnabled = count > 0 && !invalidColors.contains(colorName);
               final isAnimating = _animatingColor == colorName;
               
               return Padding(

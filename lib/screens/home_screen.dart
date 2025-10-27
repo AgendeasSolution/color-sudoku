@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
 import '../services/level_progression_service.dart';
+import '../services/audio_service.dart';
 import '../widgets/components/game_button.dart';
 import '../widgets/components/ad_banner.dart';
 import '../widgets/components/gradient_logo.dart';
@@ -119,11 +120,13 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _showHowToPlay() {
+    AudioService().playButtonClick();
     setState(() => _showHowToPlayModal = true);
     _modalAnimationController.forward(from: 0.0);
   }
 
   void _hideHowToPlay() {
+    AudioService().playButtonClick();
     _modalAnimationController.reverse().then((_) {
       setState(() => _showHowToPlayModal = false);
     });
@@ -275,7 +278,10 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
       child: GestureDetector(
-        onTap: isUnlocked ? () => _startLevel(levelIndex) : null,
+        onTap: isUnlocked ? () {
+          AudioService().playButtonClick();
+          _startLevel(levelIndex);
+        } : null,
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
