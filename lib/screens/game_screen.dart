@@ -6,10 +6,8 @@ import '../models/cell_position.dart';
 import '../models/game_state.dart';
 import '../models/modal_types.dart';
 import '../services/game_logic_service.dart';
-import '../services/solver_service.dart';
 import '../services/level_progression_service.dart';
 import '../services/interstitial_ad_service.dart';
-import '../services/rewarded_ad_service.dart';
 import '../utils/color_utils.dart';
 import '../utils/validation_utils.dart';
 import '../utils/responsive_utils.dart';
@@ -45,7 +43,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     path: [],
     currentStep: 0,
     isGameOver: false,
-    prefilledCells: {},
   );
   
   Map<String, Color> _colors = {};
@@ -53,9 +50,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   // UI State
   ModalType _activeModal = ModalType.none;
-  bool _solutionShown = false;
-  bool _solutionAnimating = false;
-  bool _justWatchedSolutionAd = false; // Track if user just watched ad for solution
 
   // Animation Controllers
   late final AnimationController _bgAnimationController;
@@ -72,7 +66,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _startLevel(widget.initialLevel);
     // Preload ads for better user experience
     InterstitialAdService.instance.preloadAd();
-    RewardedAdService.instance.preloadAd();
   }
 
   void _initializeAnimationControllers() {
@@ -110,8 +103,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       _gameState = GameLogicService.initializeGame(levelIndex);
       _gameState = _gameState.copyWith(history: []); // Clear history for new level
       _colors = ColorUtils.getColorsForLevel(_gameState.colorNames);
-      _solutionShown = false; // Reset solution shown state for new level
-      _justWatchedSolutionAd = false; // Reset solution ad flag for new level
     });
   }
 
@@ -221,145 +212,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _showModal(ModalType.gameOver);
   }
 
-  // --- Solver Logic ---
-
-  Future<void> _showSolution() async {
-    print('=== SOLUTION BUTTON PRESSED ===');
-    print('Level: ${_gameState.currentLevel}');
-    print('Grid Size: ${_gameState.gridSize}');
-    print('Colors: ${_gameState.colorNames}');
-    print('Current step: ${_gameState.currentStep}');
-    
-    // Show rewarded ad first - reward-based system
-    final adShown = await RewardedAdService.instance.showAdAlways(
-      onAdDismissed: () {
-        // This callback is called when ad is dismissed
-        // Only execute solution if reward was actually earned
-        if (RewardedAdService.instance.wasRewardEarned) {
-          print('Reward earned! Executing solution...');
-          // Set flag to indicate user just watched ad for solution
-          _justWatchedSolutionAd = true;
-          _executeSolution();
-        } else {
-          print('No reward earned. Solution not provided.');
-          // Show message that user needs to watch full ad
-          _showRewardRequiredMessage();
-        }
-        // Preload next ad for future use
-        RewardedAdService.instance.preloadAd();
-      },
-      onRewardEarned: () {
-        // This callback is called when user earns reward
-        print('User earned reward for solution!');
-        // Solution will be executed in onAdDismissed callback if reward was earned
-      },
-    );
-
-    // If ad failed to load, still provide solution (graceful fallback)
-    if (!adShown) {
-      _executeSolution();
-      // Preload next ad for future use
-      RewardedAdService.instance.preloadAd();
-    }
-  }
-
-  void _showRewardRequiredMessage() {
-    // Show a brief message that user needs to watch full ad
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Please watch the full ad to earn the solution!',
-          style: TextStyle(
-            fontFamily: AppConstants.primaryFontFamily,
-            fontWeight: AppConstants.boldWeight,
-          ),
-        ),
-        backgroundColor: AppConstants.warningColor,
-        duration: Duration(seconds: 3),
-      ),
-    );
-  }
-
-  Future<void> _executeSolution() async {
-    // Hide button immediately when ad is dismissed to prevent multiple clicks
-    setState(() {
-      _solutionShown = true;
-      _solutionAnimating = true;
-    });
-    
-    try {
-      print('Starting solver with current board state...');
-      final solutionSteps = await SolverService.solveGame(_gameState);
-      print('Solver returned ${solutionSteps.length} steps');
-
-      if (solutionSteps.isNotEmpty) {
-        print('Solution found, applying remaining moves with animation...');
-        print('Solution has ${solutionSteps.length} steps for ${_gameState.gridSize}x${_gameState.gridSize} grid');
-        
-        // Don't reset the game state - keep player's current moves
-        // Only apply the solution steps that fill remaining empty cells
-        for (int i = 0; i < solutionSteps.length; i++) {
-          final step = solutionSteps[i];
-          print('Applying step ${i + 1}: ${step.color} at (${step.position.row}, ${step.position.col})');
-          await Future.delayed(AppConstants.solutionStepDelay);
-          
-          // Check if widget is still mounted before calling setState
-          if (!mounted) return;
-          
-          setState(() {
-            // Only place if the cell is currently empty
-            if (_gameState.gridState[step.position.row][step.position.col] == null) {
-              final newGridState = _gameState.gridState.map((row) => List<String?>.from(row)).toList();
-              newGridState[step.position.row][step.position.col] = step.color;
-              
-              final newBallCounts = Map<String, int>.from(_gameState.ballCounts);
-              newBallCounts[step.color] = newBallCounts[step.color]! - 1;
-              
-              final newCurrentStep = _gameState.currentStep + 1;
-              final isGameOver = newCurrentStep == _gameState.gridSize * _gameState.gridSize;
-              
-              _gameState = _gameState.copyWith(
-                gridState: newGridState,
-                ballCounts: newBallCounts,
-                currentStep: newCurrentStep,
-                isGameOver: isGameOver,
-              );
-            }
-          });
-        }
-        
-        // Wait 4 seconds after all cells are filled, then show modal
-        await Future.delayed(const Duration(seconds: 4));
-        
-        // Check if widget is still mounted before showing modal
-        if (!mounted) return;
-        
-        setState(() {
-          _solutionAnimating = false;
-        });
-        
-        print('Solution complete, showing modal');
-        _showModal(ModalType.solutionComplete);
-      } else {
-        print('No solution found');
-        if (mounted) {
-          setState(() {
-            _solutionAnimating = false;
-          });
-          _showModal(ModalType.noSolution);
-        }
-      }
-    } catch (e) {
-      print('ERROR in solution: $e');
-      if (mounted) {
-        setState(() {
-          _solutionAnimating = false;
-        });
-        _showModal(ModalType.noSolution);
-      }
-    }
-  }
-
   // --- UI and Animation Methods ---
 
   void _showInvalidMoveWarning(CellPosition pos) {
@@ -396,14 +248,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           _restartLevelWithAd(0);
           break;
         case ModalAction.playAgain:
-          // Check if user just watched solution ad - skip interstitial if so
-          if (_justWatchedSolutionAd) {
-            print('User just watched solution ad, skipping interstitial ad for play again');
-            _startLevel(_gameState.currentLevel);
-            _justWatchedSolutionAd = false; // Reset the flag
-          } else {
-            _restartLevelWithAd(_gameState.currentLevel);
-          }
+          _restartLevelWithAd(_gameState.currentLevel);
           break;
         case ModalAction.close:
           // just close
@@ -603,49 +448,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Solution button (left) - only visible if solution not shown
-            if (!_solutionShown) ...[
-              Expanded(
-                child: GestureDetector(
-                  onTap: _showSolution,
-                  child: Container(
-                    padding: ResponsiveUtils.getSolutionButtonPadding(context),
-                    decoration: BoxDecoration(
-                      color: AppConstants.warningColor,
-                      borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '🎁',
-                          style: TextStyle(
-                            fontSize: ResponsiveUtils.getResponsiveIconSize(context) * 0.7,
-                          ),
-                        ),
-                        SizedBox(
-                          width: ResponsiveUtils.getResponsiveSpacing(context, 4),
-                        ),
-                        Flexible(
-                          child: Text(
-                            'Solution',
-                            style: TextStyle(
-                              fontFamily: AppConstants.primaryFontFamily,
-                              fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
-                              fontWeight: AppConstants.boldWeight,
-                              color: AppConstants.textPrimaryColor,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 8)),
-            ],
-            
             // Undo button
             Expanded(
               child: GestureDetector(
@@ -855,8 +657,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.center,
             children: rowColors.map((colorName) {
               final count = _gameState.ballCounts[colorName]!;
-              // Block all colors when solution is animating, otherwise use normal logic
-              final isEnabled = _solutionAnimating ? false : (count > 0 && !invalidColors.contains(colorName));
+              // Block colors based on availability and validity
+              final isEnabled = count > 0 && !invalidColors.contains(colorName);
               return Padding(
                 padding: EdgeInsets.symmetric(horizontal: ResponsiveUtils.isMobile(context) ? 2.0 : 4.0),
                 child: GestureDetector(

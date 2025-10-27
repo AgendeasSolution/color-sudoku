@@ -12,12 +12,6 @@ class ValidationUtils {
 
     final pos = gameState.path[gameState.currentStep];
     
-    // Check if trying to place on a prefilled cell
-    final cellKey = '${pos.row},${pos.col}';
-    if (gameState.prefilledCells.contains(cellKey)) {
-      return false; // Cannot place on prefilled cells
-    }
-    
     return GameLogicService.isPlacementValid(
       gameState.gridState,
       pos.row,

@@ -106,93 +106,6 @@ class GameLogicService {
     return availableColors.isEmpty;
   }
 
-  /// Generate prefilled cells: one per color with unique rows, columns, and no adjacency
-  /// Guarantees all colors are placed by retrying with fewer constraints if needed
-  static Set<String> generatePrefilledCells(
-    List<String> colorNames,
-    int gridSize,
-    Map<String, int> ballCounts,
-    List<List<String?>> gridState,
-  ) {
-    // Try multiple times with different randomizations
-    for (int attempt = 0; attempt < 50; attempt++) {
-      final prefilledCells = <String>{};
-      final usedRows = <int>{};
-      final usedCols = <int>{};
-      
-      // Reset ball counts for this attempt
-      for (var name in colorNames) {
-        ballCounts[name] = gridSize;
-      }
-      
-      // Shuffle colors for randomness
-      final shuffledColors = List<String>.from(colorNames)..shuffle(Random());
-      
-      // Try to place each color
-      bool allPlaced = true;
-      for (final color in shuffledColors) {
-        bool placed = false;
-        
-        // Create all positions and shuffle them
-        final allPositions = <CellPosition>[];
-        for (int row = 0; row < gridSize; row++) {
-          for (int col = 0; col < gridSize; col++) {
-            allPositions.add(CellPosition(row, col));
-          }
-        }
-        allPositions.shuffle(Random());
-        
-        for (final pos in allPositions) {
-          // Check if row or column already used
-          if (usedRows.contains(pos.row) || usedCols.contains(pos.col)) continue;
-          
-          // Check if adjacent to any existing prefilled cell
-          bool isAdjacent = false;
-          for (final cellKey in prefilledCells) {
-            final parts = cellKey.split(',');
-            final existingRow = int.parse(parts[0]);
-            final existingCol = int.parse(parts[1]);
-            if ((pos.row - existingRow).abs() <= 1 && (pos.col - existingCol).abs() <= 1) {
-              isAdjacent = true;
-              break;
-            }
-          }
-          if (isAdjacent) continue;
-          
-          // Place the color
-          final cellKey = '${pos.row},${pos.col}';
-          prefilledCells.add(cellKey);
-          usedRows.add(pos.row);
-          usedCols.add(pos.col);
-          gridState[pos.row][pos.col] = color;
-          ballCounts[color] = ballCounts[color]! - 1;
-          placed = true;
-          break;
-        }
-        
-        if (!placed) {
-          allPlaced = false;
-          break;
-        }
-      }
-      
-      // If we successfully placed all colors, return
-      if (allPlaced && prefilledCells.length == colorNames.length) {
-        return prefilledCells;
-      }
-      
-      // Otherwise, clear the grid for next attempt
-      for (int row = 0; row < gridSize; row++) {
-        for (int col = 0; col < gridSize; col++) {
-          gridState[row][col] = null;
-        }
-      }
-    }
-    
-    // If we still can't place all, just place what we can (shouldn't happen)
-    print('Warning: Could not place all prefilled cells after 50 attempts');
-    return {};
-  }
 
   static GameState initializeGame(int levelIndex) {
     if (levelIndex < 0 || levelIndex >= AppConstants.levelConfig.length) {
@@ -208,20 +121,6 @@ class GameLogicService {
       (_) => List.generate(gridSize, (_) => null as String?)
     );
     final path = generateSnakePath(gridSize);
-    
-    // Generate prefilled cells
-    final prefilledCells = generatePrefilledCells(colorNames, gridSize, ballCounts, gridState);
-    
-    // Find the first position in path that is not prefilled
-    int initialStep = 0;
-    for (int i = 0; i < path.length; i++) {
-      final pos = path[i];
-      final cellKey = '${pos.row},${pos.col}';
-      if (!prefilledCells.contains(cellKey)) {
-        initialStep = i;
-        break;
-      }
-    }
 
     return GameState(
       currentLevel: levelIndex,
@@ -230,9 +129,8 @@ class GameLogicService {
       ballCounts: ballCounts,
       gridState: gridState,
       path: path,
-      currentStep: initialStep,
+      currentStep: 0,
       isGameOver: false,
-      prefilledCells: prefilledCells,
     );
   }
 
@@ -245,12 +143,6 @@ class GameLogicService {
     }
 
     final pos = currentState.path[currentState.currentStep];
-    
-    // Check if trying to place on a prefilled cell
-    final cellKey = '${pos.row},${pos.col}';
-    if (currentState.prefilledCells.contains(cellKey)) {
-      return currentState; // Cannot modify prefilled cells
-    }
     
     if (!isPlacementValid(
       currentState.gridState,
@@ -270,17 +162,8 @@ class GameLogicService {
     final newBallCounts = Map<String, int>.from(currentState.ballCounts);
     newBallCounts[color] = newBallCounts[color]! - 1;
 
-    // Move to next position, skipping over prefilled cells
-    int nextStep = currentState.currentStep + 1;
-    while (nextStep < currentState.path.length) {
-      final nextPos = currentState.path[nextStep];
-      final nextCellKey = '${nextPos.row},${nextPos.col}';
-      if (!currentState.prefilledCells.contains(nextCellKey)) {
-        break;
-      }
-      nextStep++;
-    }
-    
+    // Move to next position
+    final nextStep = currentState.currentStep + 1;
     final isGameOver = nextStep >= currentState.path.length;
 
     return currentState.copyWith(
