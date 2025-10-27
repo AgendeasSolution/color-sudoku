@@ -15,6 +15,7 @@ class RewardedAdService {
   bool _rewardEarned = false;
   VoidCallback? _onAdDismissedCallback;
   VoidCallback? _onRewardEarnedCallback;
+  Completer<void>? _loadingCompleter;
 
   /// Test ad unit ID for development
   static const String _testAdUnitId = 'ca-app-pub-3940256099942544/5224354917';
@@ -35,12 +36,29 @@ class RewardedAdService {
   /// Load rewarded ad
   Future<void> loadAd() async {
     if (_isLoading) {
-      print('Ad is already loading, waiting...');
-      // Wait for current loading to complete
-      while (_isLoading) {
-        await Future.delayed(const Duration(milliseconds: 100));
+      print('Ad is already loading, waiting for completion...');
+      // Wait for the existing loading completer
+      if (_loadingCompleter != null) {
+        try {
+          await _loadingCompleter!.future.timeout(
+            Duration(seconds: 5),
+            onTimeout: () {
+              print('Timeout waiting for ad to load, resetting state...');
+              _isLoading = false;
+              _loadingCompleter = null;
+            },
+          );
+        } catch (e) {
+          print('Error waiting for ad load: $e');
+          _isLoading = false;
+          _loadingCompleter = null;
+        }
       }
-      return;
+      
+      // If ad is ready now, return
+      if (_isAdReady) {
+        return;
+      }
     }
     
     if (_isAdReady) {
@@ -50,6 +68,7 @@ class RewardedAdService {
 
     _isLoading = true;
     _isAdReady = false;
+    _loadingCompleter = Completer<void>();
     print('Loading rewarded ad with ID: $_adUnitId');
 
     try {
@@ -83,12 +102,20 @@ class RewardedAdService {
                 _disposeAd();
               },
             );
+            
+            // Complete the loading completer
+            _loadingCompleter?.complete();
+            _loadingCompleter = null;
           },
           onAdFailedToLoad: (error) {
             print('Rewarded ad failed to load: $error');
             _isLoading = false;
             _isAdReady = false;
             _rewardedAd = null;
+            
+            // Complete the loading completer with error
+            _loadingCompleter?.complete();
+            _loadingCompleter = null;
           },
         ),
       );
@@ -97,6 +124,10 @@ class RewardedAdService {
       _isLoading = false;
       _isAdReady = false;
       _rewardedAd = null;
+      
+      // Complete the loading completer with error
+      _loadingCompleter?.complete();
+      _loadingCompleter = null;
     }
   }
 
@@ -108,10 +139,12 @@ class RewardedAdService {
     // Try up to 3 times to load and show ad
     for (int attempt = 1; attempt <= 3; attempt++) {
       print('Attempt $attempt to show rewarded ad');
+      print('Current state: isAdReady=$_isAdReady, isLoading=$_isLoading');
       
       if (!_isAdReady || _rewardedAd == null) {
         print('Rewarded ad not ready, loading new ad...');
         await loadAd();
+        print('After loadAd: isAdReady=$_isAdReady, isLoading=$_isLoading');
         
         // Wait a bit more for the ad to be fully ready
         if (_isAdReady && _rewardedAd != null) {

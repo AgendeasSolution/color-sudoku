@@ -8,6 +8,7 @@ import '../models/modal_types.dart';
 import '../services/game_logic_service.dart';
 import '../services/level_progression_service.dart';
 import '../services/interstitial_ad_service.dart';
+import '../services/rewarded_ad_service.dart';
 import '../services/audio_service.dart';
 import '../utils/color_utils.dart';
 import '../utils/validation_utils.dart';
@@ -71,6 +72,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _startLevel(widget.initialLevel);
     // Preload ads for better user experience
     InterstitialAdService.instance.preloadAd();
+    // Initialize rewarded ad service for solution button
+    RewardedAdService.instance.preloadAd();
+    // Show interstitial ad on entry with 50% probability
+    _showEntryAd();
   }
 
   void _initializeAnimationControllers() {
@@ -106,6 +111,23 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   // --- Game Logic ---
+
+  /// Show interstitial ad on entry with 50% probability
+  void _showEntryAd() {
+    // Add a small delay to ensure the game screen is fully rendered
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      
+      // Show interstitial ad with 50% probability
+      InterstitialAdService.instance.showAdWithProbability(
+        onAdDismissed: () {
+          // Ad dismissed, continue playing
+          // Preload next ad for future use
+          InterstitialAdService.instance.preloadAd();
+        },
+      );
+    });
+  }
 
   void _startLevel(int levelIndex) {
     if (levelIndex < 0 || levelIndex >= AppConstants.levelConfig.length) return;
@@ -219,9 +241,37 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     });
   }
 
-  void _showSolution() {
+  Future<void> _showSolution() async {
     AudioService().playButtonClick();
     
+    bool rewardEarned = false;
+    
+    // Show rewarded ad to get solution
+    final adShown = await RewardedAdService.instance.showAdAlways(
+      onAdDismissed: () {
+        // This callback is called when ad is dismissed
+        // Only show solution if reward was earned
+        if (rewardEarned) {
+          _showSolutionAfterAd();
+        }
+        // Preload next ad for future use
+        RewardedAdService.instance.preloadAd();
+      },
+      onRewardEarned: () {
+        // This callback is called when user watches the ad and earns reward
+        rewardEarned = true;
+      },
+    );
+
+    // If ad failed to load, show solution anyway
+    if (!adShown) {
+      _showSolutionAfterAd();
+      // Preload next ad for future use
+      RewardedAdService.instance.preloadAd();
+    }
+  }
+
+  void _showSolutionAfterAd() {
     // Try to solve the puzzle
     final solution = GameLogicService.solvePuzzle(_gameState);
 
@@ -390,31 +440,27 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     });
   }
 
-  /// Exit to home with interstitial ad (50% probability)
+  /// Exit to home with interstitial ad (100% probability - always show)
   Future<void> _goHomeWithAd() async {
-    // Check if ad is ready first to avoid loading delays
-    if (InterstitialAdService.instance.isAdReady) {
-      // Try to show interstitial ad with 50% probability
-      final adShown = await InterstitialAdService.instance.showAdWithProbability(
-        onAdDismissed: () {
-          // This callback is called when ad is dismissed - exit immediately
-          widget.onGoHome();
-          // Preload next ad for future use
-          InterstitialAdService.instance.preloadAd();
-        },
-      );
-
-      // If ad was not shown (50% chance), exit immediately
-      if (!adShown) {
+    // Show interstitial ad with 100% probability (always show)
+    final adShown = await InterstitialAdService.instance.showAdAlways(
+      onAdDismissed: () {
+        // This callback is called when ad is dismissed - exit immediately
         widget.onGoHome();
-        // Preload next ad for future use
-        InterstitialAdService.instance.preloadAd();
-      }
-    } else {
-      // No ad ready, exit immediately without delay
+        // Preload next ad for future use (non-blocking)
+        Future.delayed(Duration.zero, () {
+          InterstitialAdService.instance.preloadAd();
+        });
+      },
+    );
+
+    // If ad failed to load, exit immediately
+    if (!adShown) {
       widget.onGoHome();
-      // Preload next ad for future use
-      InterstitialAdService.instance.preloadAd();
+      // Preload next ad for future use (non-blocking)
+      Future.delayed(Duration.zero, () {
+        InterstitialAdService.instance.preloadAd();
+      });
     }
   }
 
