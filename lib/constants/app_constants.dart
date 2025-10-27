@@ -79,8 +79,8 @@ class AppConstants {
   // Grid Configuration
   static const double gridPadding = 4.0;
   static const double cellSpacing = 2.0;
-  static const double cellBorderRadius = 12.0;
-  static const double gridBorderRadius = 20.0;
+  static const double cellBorderRadius = 6.0;
+  static const double gridBorderRadius = 12.0;
   static const double cellBorderWidth = 2.0;
 
   // Button Configuration

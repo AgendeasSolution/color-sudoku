@@ -646,7 +646,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               aspectRatio: 1,
               child: GradientBorderContainer(
                 key: _gridKey,
-                padding: EdgeInsets.all(ResponsiveUtils.getGridPadding(context)),
+                padding: EdgeInsets.all(ResponsiveUtils.getGridPadding(context) + 4),
                 borderRadius: AppConstants.gridBorderRadius,
                 borderWidth: AppConstants.cellBorderWidth,
                 child: GridView.builder(
