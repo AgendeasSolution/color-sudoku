@@ -615,16 +615,11 @@ class GameLogicService {
     final clues = _generateCluesWithDifferentColors(solution, gridSize, colorNames);
     final preFilledCells = <String>{};
     
-    print('DEBUG: Generated ${clues.length} clues for grid size $gridSize');
-    
     // Apply the clues to the grid and track them as pre-filled
     for (final clue in clues) {
       gridState[clue.row][clue.col] = clue.color;
       preFilledCells.add('${clue.row},${clue.col}');
-      print('DEBUG: Placed clue at row=${clue.row}, col=${clue.col}, color=${clue.color}');
     }
-    
-    print('DEBUG: Total pre-filled cells: ${preFilledCells.length}');
     
     // Calculate ball counts based on remaining cells
     final ballCounts = calculateBallCounts(colorNames, gridSize, gridState);
@@ -674,26 +669,22 @@ class GameLogicService {
     for (int col = 0; col < gridSize; col++) {
       final positions = positionsByColumn[col]!;
       bool placedClue = false;
-      print('DEBUG: Processing column $col');
       
       for (final pos in positions) {
         final color = solution[pos.row][pos.col]!;
 
         // Skip if this column is already used
         if (usedCols.contains(pos.col)) {
-          print('DEBUG: Column $col already used, breaking');
           break;
         }
 
         // Skip if this row or color is already used
         if (usedRows.contains(pos.row) || usedColors.contains(color)) {
-          print('DEBUG: Position row=${pos.row} col=${pos.col} color=$color rejected (row or color used)');
           continue;
         }
 
         // Check for diagonal conflicts with existing clues
         if (_hasDiagonalConflict(pos.row, pos.col, usedPositions, gridSize)) {
-          print('DEBUG: Position row=${pos.row} col=${pos.col} rejected (diagonal conflict)');
           continue;
         }
 
@@ -704,13 +695,11 @@ class GameLogicService {
         usedColors.add(color);
         usedPositions.add('${pos.row},${pos.col}');
         placedClue = true;
-        print('DEBUG: Placed clue at column $col: row=${pos.row}, color=$color');
         break; // Move to next column
       }
 
       // If we couldn't place a clue in this column, try to place one with a unique color
       if (!placedClue && usedCols.length < gridSize) {
-        print('DEBUG: Failed to place clue in column $col, trying fallback');
         // Find any position in this column that hasn't been used with a unique color
         for (int row = 0; row < gridSize; row++) {
           if (!usedRows.contains(row)) {
@@ -722,17 +711,12 @@ class GameLogicService {
               usedCols.add(col);
               usedColors.add(color);
               usedPositions.add('$row,$col');
-              print('DEBUG: Fallback placed clue at column $col: row=$row, color=$color');
               break;
             }
           }
         }
       }
-      
-      print('DEBUG: After column $col: total clues=${clues.length}, usedCols=$usedCols');
     }
-    
-    print('DEBUG: Final total clues: ${clues.length}');
 
     return clues;
   }
