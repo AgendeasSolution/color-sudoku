@@ -417,20 +417,24 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: Stack(
-              children: [
-                _buildAnimatedBackground(),
-                SafeArea(
-                  child: _buildGameUI(),
+          Column(
+            children: [
+              Expanded(
+                child: Stack(
+                  children: [
+                    _buildAnimatedBackground(),
+                    SafeArea(
+                      child: _buildGameUI(),
+                    ),
+                  ],
                 ),
-                if (_activeModal != ModalType.none) _buildModalOverlay(),
-              ],
-            ),
+              ),
+              const AdBanner(),
+            ],
           ),
-          const AdBanner(),
+          if (_activeModal != ModalType.none) _buildModalOverlay(),
         ],
       ),
     );
@@ -774,65 +778,74 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   Widget _buildModalOverlay() {
     final modalContent = ModalContentProvider.getModalContent(_activeModal);
-    return Container(
-      color: Colors.black.withOpacity(0.8),
-      child: Center(
-        child: AnimatedBuilder(
-          animation: _modalAnimationController,
-          builder: (context, child) {
-            final scale = AppConstants.modalScaleMin + 
-                (_modalAnimationController.value * (AppConstants.modalScaleMax - AppConstants.modalScaleMin));
-            return Transform.scale(
-              scale: scale,
-              child: Opacity(
-                opacity: _modalAnimationController.value,
-                child: child,
-              ),
-            );
-          },
-          child: Padding(
-            padding: ResponsiveUtils.getModalPadding(context),
-            child: ModalContainer(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    modalContent.icon, 
-                    style: TextStyle(fontSize: ResponsiveUtils.getModalIconSize(context))
-                  ),
-                  SizedBox(height: ResponsiveUtils.getGameElementSpacing(context)),
-                  Text(
-                    modalContent.title,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: AppConstants.primaryFontFamily,
-                      fontSize: ResponsiveUtils.getTitleFontSize(context),
-                      fontWeight: AppConstants.boldWeight,
-                      color: AppConstants.textPrimaryColor,
+    return Positioned.fill(
+      child: AnimatedBuilder(
+        animation: _modalAnimationController,
+        builder: (context, child) {
+          return Opacity(
+            opacity: _modalAnimationController.value,
+            child: Container(
+              color: Colors.black.withOpacity(0.5),
+              child: SafeArea(
+                child: Center(
+                  child: AnimatedBuilder(
+                    animation: _modalAnimationController,
+                    builder: (context, child) {
+                      final scale = AppConstants.modalScaleMin + 
+                          (_modalAnimationController.value * (AppConstants.modalScaleMax - AppConstants.modalScaleMin));
+                      return Transform.scale(
+                        scale: scale,
+                        child: child,
+                      );
+                    },
+                    child: Padding(
+                      padding: ResponsiveUtils.getModalPadding(context),
+                      child: ModalContainer(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              modalContent.icon, 
+                              style: TextStyle(fontSize: ResponsiveUtils.getModalIconSize(context))
+                            ),
+                            SizedBox(height: ResponsiveUtils.getGameElementSpacing(context)),
+                            Text(
+                              modalContent.title,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontFamily: AppConstants.primaryFontFamily,
+                                fontSize: ResponsiveUtils.getTitleFontSize(context),
+                                fontWeight: AppConstants.boldWeight,
+                                color: AppConstants.textPrimaryColor,
+                              ),
+                            ),
+                            SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 15)),
+                            Text(
+                              modalContent.text,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontFamily: AppConstants.secondaryFontFamily,
+                                fontSize: ResponsiveUtils.getBodyFontSize(context),
+                                color: AppConstants.textTertiaryColor,
+                                height: 1.6,
+                              ),
+                            ),
+                            SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, AppConstants.extraLargeSpacing)),
+                            ModalButton(
+                              text: modalContent.buttonText,
+                              color: modalContent.buttonColor,
+                              onPressed: () => _onModalAction(modalContent.action),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 15)),
-                  Text(
-                    modalContent.text,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: AppConstants.secondaryFontFamily,
-                      fontSize: ResponsiveUtils.getBodyFontSize(context),
-                      color: AppConstants.textTertiaryColor,
-                      height: 1.6,
-                    ),
-                  ),
-                  SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, AppConstants.extraLargeSpacing)),
-                  ModalButton(
-                    text: modalContent.buttonText,
-                    color: modalContent.buttonColor,
-                    onPressed: () => _onModalAction(modalContent.action),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

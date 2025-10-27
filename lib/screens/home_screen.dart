@@ -142,24 +142,24 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: Stack(
-              children: [
-                _buildAnimatedBackground(),
-                SafeArea(
-                  child: Stack(
-                    children: [
-                      _buildHomeContent(),
-                      if (_showHowToPlayModal) _buildHowToPlayModal(),
-                    ],
-                  ),
+          Column(
+            children: [
+              Expanded(
+                child: Stack(
+                  children: [
+                    _buildAnimatedBackground(),
+                    SafeArea(
+                      child: _buildHomeContent(),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const AdBanner(),
+            ],
           ),
-          const AdBanner(),
+          if (_showHowToPlayModal) _buildHowToPlayModal(),
         ],
       ),
     );
@@ -226,8 +226,14 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       padding: ResponsiveUtils.getResponsivePadding(context),
       child: Column(
         children: [
-          _buildLogo(),
-          SizedBox(height: ResponsiveUtils.getGameElementSpacing(context)),
+          // Add margin-top to logo
+          Padding(
+            padding: EdgeInsets.only(
+              top: ResponsiveUtils.getResponsiveSpacing(context, 16),
+            ),
+            child: _buildLogo(),
+          ),
+          SizedBox(height: ResponsiveUtils.getGameElementSpacing(context) + ResponsiveUtils.getResponsiveSpacing(context, 8)),
           Expanded(child: _buildLevelGrid()),
           SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 8)),
           _buildHowToPlayButton(),
@@ -467,7 +473,7 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               child: Icon(
                 Icons.lock,
-                size: ResponsiveUtils.getResponsiveIconSize(context) * 0.6,
+                size: ResponsiveUtils.getResponsiveIconSize(context) * 0.9,
                 color: Colors.grey.shade400,
               ),
             ),
@@ -492,7 +498,7 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               child: Icon(
                 Icons.star,
-                size: ResponsiveUtils.getResponsiveIconSize(context) * 0.6,
+                size: ResponsiveUtils.getResponsiveIconSize(context) * 0.9,
                 color: Colors.white,
               ),
             ),
@@ -530,24 +536,34 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildHowToPlayModal() {
     return Positioned.fill(
-      child: Center(
-        child: AnimatedBuilder(
-          animation: _modalAnimationController,
-          builder: (context, child) {
-            final scale = AppConstants.modalScaleMin + 
-                (_modalAnimationController.value * (AppConstants.modalScaleMax - AppConstants.modalScaleMin));
-            return Transform.scale(
-              scale: scale,
-              child: Opacity(
-                opacity: _modalAnimationController.value,
-                child: child,
+      child: AnimatedBuilder(
+        animation: _modalAnimationController,
+        builder: (context, child) {
+          return Opacity(
+            opacity: _modalAnimationController.value,
+            child: Container(
+              color: Colors.black.withOpacity(0.5),
+              child: SafeArea(
+                child: Center(
+                  child: AnimatedBuilder(
+                    animation: _modalAnimationController,
+                    builder: (context, child) {
+                      final scale = AppConstants.modalScaleMin + 
+                          (_modalAnimationController.value * (AppConstants.modalScaleMax - AppConstants.modalScaleMin));
+                      return Transform.scale(
+                        scale: scale,
+                        child: child,
+                      );
+                    },
+                    child: StartupModal(
+                      onClose: _hideHowToPlay,
+                    ),
+                  ),
+                ),
               ),
-            );
-          },
-          child: StartupModal(
-            onClose: _hideHowToPlay,
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -132,10 +132,10 @@ class ResponsiveUtils {
   static double getLogoFontSize(BuildContext context) {
     return getResponsiveFontSize(
       context,
-      smallMobile: 28,
-      mediumMobile: 32,
-      largeMobile: 36,
-      tablet: 38,
+      smallMobile: 32,
+      mediumMobile: 36,
+      largeMobile: 40,
+      tablet: 42,
     );
   }
   
@@ -198,10 +198,10 @@ class ResponsiveUtils {
   static double getLevelCardFontSize(BuildContext context) {
     return getResponsiveFontSize(
       context,
-      smallMobile: 20,
-      mediumMobile: 24,
-      largeMobile: 26,
-      tablet: 28,
+      smallMobile: 26,
+      mediumMobile: 30,
+      largeMobile: 32,
+      tablet: 34,
     );
   }
   
