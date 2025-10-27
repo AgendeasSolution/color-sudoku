@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/widgets.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -168,9 +169,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
         return FadeTransition(
           opacity: opacity,
-          child: const GradientLogo(
+          child: GradientLogo(
             textAlign: TextAlign.center,
             showSubtitle: true,
+            fontSize: ResponsiveUtils.getLogoFontSize(context),
+            subtitleFontSize: ResponsiveUtils.getSubtitleFontSize(context),
           ),
         );
       },
@@ -201,19 +204,19 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               children: [
                 Text(
                   'Developed by',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: AppConstants.secondaryFontFamily,
-                    fontSize: AppConstants.smallFontSize,
+                    fontSize: ResponsiveUtils.getSubtitleFontSize(context),
                     color: AppConstants.textPrimaryColor,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 2)),
                 Text(
                   'FGTP Labs',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: AppConstants.primaryFontFamily,
-                    fontSize: AppConstants.bodyFontSize,
+                    fontSize: ResponsiveUtils.getBodyFontSize(context),
                     fontWeight: AppConstants.boldWeight,
                     color: AppConstants.textPrimaryColor,
                   ),

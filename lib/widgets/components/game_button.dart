@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_constants.dart';
+import '../../utils/responsive_utils.dart';
 
 class GameButton extends StatelessWidget {
   final String icon;
@@ -17,17 +18,12 @@ class GameButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSmallScreen = MediaQuery.of(context).size.width < 450;
-    
     return ElevatedButton(
       onPressed: onPressed,
       style: ButtonStyle(
         backgroundColor: MaterialStateProperty.all(color),
         padding: MaterialStateProperty.all(
-          const EdgeInsets.symmetric(
-            horizontal: AppConstants.mediumSpacing,
-            vertical: AppConstants.smallSpacing,
-          ),
+          ResponsiveUtils.getButtonPadding(context),
         ),
         shape: MaterialStateProperty.all(
           RoundedRectangleBorder(
@@ -44,14 +40,18 @@ class GameButton extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(icon, style: const TextStyle(fontSize: AppConstants.smallIconSize)),
-          const SizedBox(width: AppConstants.smallSpacing),
+          Text(
+            icon, 
+            style: TextStyle(fontSize: ResponsiveUtils.getResponsiveIconSize(context))
+          ),
+          SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, AppConstants.smallSpacing)),
           Flexible(
             child: Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: AppConstants.primaryFontFamily,
                 fontWeight: AppConstants.semiBoldWeight,
+                fontSize: ResponsiveUtils.getBodyFontSize(context),
                 color: AppConstants.textPrimaryColor,
               ),
               overflow: TextOverflow.ellipsis,

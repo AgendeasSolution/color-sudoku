@@ -58,7 +58,7 @@ class GradientLogo extends StatelessWidget {
         ),
         // Subtitle
         if (showSubtitle) ...[
-          const SizedBox(height: 4.0),
+          const SizedBox(height: 1.0),
           Text(
             subtitle ?? AppConstants.appDescription,
             textAlign: textAlign,

@@ -12,15 +12,13 @@ import '../services/interstitial_ad_service.dart';
 import '../services/rewarded_ad_service.dart';
 import '../utils/color_utils.dart';
 import '../utils/validation_utils.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/components/ad_banner.dart';
 import '../widgets/components/color_ball.dart';
-import '../widgets/components/game_button.dart';
 import '../widgets/components/gradient_border_container.dart';
 import '../widgets/components/grid_cell.dart';
-import '../widgets/components/level_badge.dart';
 import '../widgets/modals/modal_button.dart';
 import '../widgets/modals/modal_container.dart';
-import '../widgets/modals/startup_modal.dart';
 
 class GameScreen extends StatefulWidget {
   final int initialLevel;
@@ -53,7 +51,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   CellPosition? _shakingCell;
 
   // UI State
-  bool _showStartupModal = false;
   ModalType _activeModal = ModalType.none;
   bool _solutionShown = false;
   bool _solutionAnimating = false;
@@ -386,10 +383,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     });
   }
 
-  void _goHome() {
-    widget.onGoHome();
-  }
-
   /// Exit to home with interstitial ad (50% probability)
   Future<void> _goHomeWithAd() async {
     // Check if ad is ready first to avoid loading delays
@@ -509,20 +502,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           right: 0,
           child: _buildTopNavBar(),
         ),
-        // Solution button - positioned below nav bar
-        Positioned(
-          top: 80, // Below the top nav bar
-          left: 0,
-          right: 0,
-          child: _buildSolutionButton(),
-        ),
+        // Solution button - positioned below nav bar (will be handled in _buildSolutionButton)
+        _buildSolutionButton(),
         // Centered game elements - truly centered on screen
         Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildGameGrid(),
-              const SizedBox(height: AppConstants.largeSpacing),
+              SizedBox(height: ResponsiveUtils.getGameElementSpacing(context)),
               _buildColorPalette(),
             ],
           ),
@@ -534,22 +522,24 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   Widget _buildTopNavBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppConstants.gridPadding),
+      padding: ResponsiveUtils.getTopNavBarPadding(context),
       child: Row(
         children: [
           // Exit button (left) - back arrow icon only
           GestureDetector(
             onTap: _goHomeWithAd,
             child: Container(
-              padding: const EdgeInsets.all(AppConstants.smallSpacing),
+              padding: EdgeInsets.all(
+                ResponsiveUtils.getResponsiveSpacing(context, AppConstants.smallSpacing)
+              ),
               decoration: BoxDecoration(
                 color: AppConstants.borderColor,
                 borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.arrow_back,
                 color: AppConstants.textPrimaryColor,
-                size: 24,
+                size: ResponsiveUtils.getResponsiveIconSize(context),
               ),
             ),
           ),
@@ -557,9 +547,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           // Level text (center) - no border or icon
           Text(
             'Level ${_gameState.currentLevel + 1}',
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: AppConstants.primaryFontFamily,
-              fontSize: 20,
+              fontSize: ResponsiveUtils.getTitleFontSize(context),
               fontWeight: AppConstants.boldWeight,
               color: AppConstants.textPrimaryColor,
             ),
@@ -569,15 +559,17 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           GestureDetector(
             onTap: () => _restartLevelWithAd(_gameState.currentLevel),
             child: Container(
-              padding: const EdgeInsets.all(AppConstants.smallSpacing),
+              padding: EdgeInsets.all(
+                ResponsiveUtils.getResponsiveSpacing(context, AppConstants.smallSpacing)
+              ),
               decoration: BoxDecoration(
                 color: AppConstants.errorColor,
                 borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.refresh,
                 color: AppConstants.textPrimaryColor,
-                size: 24,
+                size: ResponsiveUtils.getResponsiveIconSize(context),
               ),
             ),
           ),
@@ -592,36 +584,42 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       return const SizedBox.shrink();
     }
     
-    return Center(
-      child: GestureDetector(
-        onTap: _showSolution,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppConstants.mediumSpacing,
-            vertical: AppConstants.smallSpacing,
-          ),
-          decoration: BoxDecoration(
-            color: AppConstants.warningColor,
-            borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '🎁',
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(width: AppConstants.smallSpacing),
-              const Text(
-                'Watch Ad for Solution',
-                style: TextStyle(
-                  fontFamily: AppConstants.primaryFontFamily,
-                  fontSize: 14,
-                  fontWeight: AppConstants.boldWeight,
-                  color: AppConstants.textPrimaryColor,
+    return Positioned(
+      top: ResponsiveUtils.getSolutionButtonTopPosition(context),
+      left: 0,
+      right: 0,
+      child: Center(
+        child: GestureDetector(
+          onTap: _showSolution,
+          child: Container(
+            padding: ResponsiveUtils.getSolutionButtonPadding(context),
+            decoration: BoxDecoration(
+              color: AppConstants.warningColor,
+              borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '🎁',
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveIconSize(context) * 0.7,
+                  ),
                 ),
-              ),
-            ],
+                SizedBox(
+                  width: ResponsiveUtils.getResponsiveSpacing(context, AppConstants.smallSpacing),
+                ),
+                Text(
+                  'Watch Ad for Solution',
+                  style: TextStyle(
+                    fontFamily: AppConstants.primaryFontFamily,
+                    fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
+                    fontWeight: AppConstants.boldWeight,
+                    color: AppConstants.textPrimaryColor,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -633,51 +631,60 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         ? null 
         : _gameState.path[_gameState.currentStep];
 
-    return Center(
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: GradientBorderContainer(
-          key: _gridKey,
-          padding: const EdgeInsets.all(AppConstants.gridPadding),
-          borderRadius: AppConstants.gridBorderRadius,
-          borderWidth: AppConstants.cellBorderWidth,
-          child: GridView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: _gameState.gridSize,
-              mainAxisSpacing: AppConstants.cellSpacing,
-              crossAxisSpacing: AppConstants.cellSpacing,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: ResponsiveUtils.isTablet(context) ? 600 : double.infinity,
             ),
-            itemCount: _gameState.gridSize * _gameState.gridSize,
-            itemBuilder: (context, index) {
-              final row = index ~/ _gameState.gridSize;
-              final col = index % _gameState.gridSize;
-              final isNextCell = nextPos != null && nextPos.row == row && nextPos.col == col;
-              final colorName = _gameState.gridState[row][col];
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: GradientBorderContainer(
+                key: _gridKey,
+                padding: EdgeInsets.all(ResponsiveUtils.getGridPadding(context)),
+                borderRadius: AppConstants.gridBorderRadius,
+                borderWidth: AppConstants.cellBorderWidth,
+                child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: _gameState.gridSize,
+                    mainAxisSpacing: ResponsiveUtils.getCellSpacing(context),
+                    crossAxisSpacing: ResponsiveUtils.getCellSpacing(context),
+                  ),
+                  itemCount: _gameState.gridSize * _gameState.gridSize,
+                  itemBuilder: (context, index) {
+                    final row = index ~/ _gameState.gridSize;
+                    final col = index % _gameState.gridSize;
+                    final isNextCell = nextPos != null && nextPos.row == row && nextPos.col == col;
+                    final colorName = _gameState.gridState[row][col];
 
-              Widget cell = GridCell(
-                color: colorName != null ? _colors[colorName] : null,
-                isNext: isNextCell,
-              );
-
-              if (_shakingCell?.row == row && _shakingCell?.col == col) {
-                return AnimatedBuilder(
-                  animation: _shakeAnimationController,
-                  builder: (context, child) {
-                    double offset = sin(_shakeAnimationController.value * 2 * pi) * AppConstants.shakeAmplitude;
-                    return Transform.translate(
-                      offset: Offset(offset, 0),
-                      child: child,
+                    Widget cell = GridCell(
+                      color: colorName != null ? _colors[colorName] : null,
+                      isNext: isNextCell,
                     );
+
+                    if (_shakingCell?.row == row && _shakingCell?.col == col) {
+                      return AnimatedBuilder(
+                        animation: _shakeAnimationController,
+                        builder: (context, child) {
+                          double offset = sin(_shakeAnimationController.value * 2 * pi) * AppConstants.shakeAmplitude;
+                          return Transform.translate(
+                            offset: Offset(offset, 0),
+                            child: child,
+                          );
+                        },
+                        child: cell,
+                      );
+                    }
+                    return cell;
                   },
-                  child: cell,
-                );
-              }
-              return cell;
-            },
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -690,12 +697,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
     
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppConstants.gridPadding),
+      padding: ResponsiveUtils.getTopNavBarPadding(context),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppConstants.mediumSpacing,
-          vertical: AppConstants.smallSpacing,
-        ),
+        padding: ResponsiveUtils.getColorPalettePadding(context),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppConstants.colorPaletteBorderRadius),
           border: Border.all(
@@ -721,9 +725,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildColorPaletteGrid(Set<String> invalidColors) {
-    const int colorsPerRow = 7;
+    final colorsPerRow = ResponsiveUtils.isTablet(context) ? 7 : 5;
     final colorNames = _gameState.colorNames;
     final int totalRows = (colorNames.length / colorsPerRow).ceil();
+    
+    final ballSize = ResponsiveUtils.getBallSize(context);
     
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -734,7 +740,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         
         return Padding(
           padding: EdgeInsets.only(
-            bottom: rowIndex < totalRows - 1 ? AppConstants.smallSpacing : 0,
+            bottom: rowIndex < totalRows - 1 
+              ? ResponsiveUtils.getResponsiveSpacing(context, AppConstants.smallSpacing) / 2
+              : 0,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -743,19 +751,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               // Block all colors when solution is animating, otherwise use normal logic
               final isEnabled = _solutionAnimating ? false : (count > 0 && !invalidColors.contains(colorName));
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.0),
+                padding: EdgeInsets.symmetric(horizontal: ResponsiveUtils.isMobile(context) ? 2.0 : 4.0),
                 child: GestureDetector(
                   onTap: isEnabled ? () => _handleColorSelection(colorName) : null,
                   child: Opacity(
                     opacity: isEnabled ? 1.0 : 0.4,
-                    child: SizedBox(
-                      width: AppConstants.ballSize,
-                      height: AppConstants.ballSize,
-                      child: ColorBall(
-                        color: _colors[colorName]!,
-                        count: count,
-                        showShadow: false,
-                      ),
+                    child: ColorBall(
+                      color: _colors[colorName]!,
+                      count: count,
+                      showShadow: false,
+                      size: ballSize,
                     ),
                   ),
                 ),
@@ -785,40 +790,46 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               ),
             );
           },
-          child: ModalContainer(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(modalContent.icon, style: const TextStyle(fontSize: AppConstants.largeIconSize)),
-                const SizedBox(height: AppConstants.largeSpacing),
-                Text(
-                  modalContent.title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: AppConstants.primaryFontFamily,
-                    fontSize: 28,
-                    fontWeight: AppConstants.boldWeight,
-                    color: AppConstants.textPrimaryColor,
+          child: Padding(
+            padding: ResponsiveUtils.getModalPadding(context),
+            child: ModalContainer(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    modalContent.icon, 
+                    style: TextStyle(fontSize: ResponsiveUtils.getModalIconSize(context))
                   ),
-                ),
-                const SizedBox(height: 15),
-                Text(
-                  modalContent.text,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: AppConstants.secondaryFontFamily,
-                    fontSize: AppConstants.bodyFontSize,
-                    color: AppConstants.textTertiaryColor,
-                    height: 1.6,
+                  SizedBox(height: ResponsiveUtils.getGameElementSpacing(context)),
+                  Text(
+                    modalContent.title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: AppConstants.primaryFontFamily,
+                      fontSize: ResponsiveUtils.getTitleFontSize(context),
+                      fontWeight: AppConstants.boldWeight,
+                      color: AppConstants.textPrimaryColor,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppConstants.extraLargeSpacing),
-                ModalButton(
-                  text: modalContent.buttonText,
-                  color: modalContent.buttonColor,
-                  onPressed: () => _onModalAction(modalContent.action),
-                ),
-              ],
+                  SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 15)),
+                  Text(
+                    modalContent.text,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: AppConstants.secondaryFontFamily,
+                      fontSize: ResponsiveUtils.getBodyFontSize(context),
+                      color: AppConstants.textTertiaryColor,
+                      height: 1.6,
+                    ),
+                  ),
+                  SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, AppConstants.extraLargeSpacing)),
+                  ModalButton(
+                    text: modalContent.buttonText,
+                    color: modalContent.buttonColor,
+                    onPressed: () => _onModalAction(modalContent.action),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

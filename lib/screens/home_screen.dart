@@ -6,6 +6,7 @@ import '../widgets/components/game_button.dart';
 import '../widgets/components/ad_banner.dart';
 import '../widgets/components/gradient_logo.dart';
 import '../widgets/modals/startup_modal.dart';
+import '../utils/responsive_utils.dart';
 
 // Custom painter for star pattern on completed levels
 class StarPatternPainter extends CustomPainter {
@@ -222,33 +223,35 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildHomeContent() {
     return Padding(
-      padding: const EdgeInsets.all(AppConstants.largeSpacing),
+      padding: ResponsiveUtils.getResponsivePadding(context),
       child: Column(
         children: [
           _buildLogo(),
-          const SizedBox(height: AppConstants.mediumSpacing),
-          _buildLevelGrid(),
-          const SizedBox(height: AppConstants.mediumSpacing),
+          SizedBox(height: ResponsiveUtils.getGameElementSpacing(context)),
+          Expanded(child: _buildLevelGrid()),
+          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 8)),
           _buildHowToPlayButton(),
-          const Spacer(),
         ],
       ),
     );
   }
 
   Widget _buildLogo() {
-    return const GradientLogo();
+    return GradientLogo(
+      fontSize: ResponsiveUtils.getLogoFontSize(context),
+      subtitleFontSize: ResponsiveUtils.getSubtitleFontSize(context),
+    );
   }
 
   Widget _buildLevelGrid() {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 1.2,
+        mainAxisSpacing: ResponsiveUtils.getResponsiveSpacing(context, 16),
+        crossAxisSpacing: ResponsiveUtils.getResponsiveSpacing(context, 16),
+        childAspectRatio: ResponsiveUtils.isTablet(context) ? 0.95 : 0.85,
       ),
       itemCount: AppConstants.levelConfig.length,
       itemBuilder: (context, index) {
@@ -293,7 +296,7 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       '${levelIndex + 1}',
                       style: TextStyle(
                         fontFamily: AppConstants.primaryFontFamily,
-                        fontSize: 28,
+                        fontSize: ResponsiveUtils.getLevelCardFontSize(context),
                         fontWeight: FontWeight.w800,
                         color: isUnlocked ? Colors.white : Colors.grey.shade400,
                         shadows: isUnlocked ? [
@@ -304,14 +307,14 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ] : null,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 4)),
                     
                     // Grid size - plain text
                     Text(
                       '${level['gridSize']}×${level['gridSize']}',
                       style: TextStyle(
                         fontFamily: AppConstants.secondaryFontFamily,
-                        fontSize: 12,
+                        fontSize: ResponsiveUtils.getLevelGridSizeFontSize(context),
                         fontWeight: FontWeight.w600,
                         color: isUnlocked ? Colors.white.withOpacity(0.9) : Colors.grey.shade400,
                         shadows: isUnlocked ? [
@@ -452,17 +455,19 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         // Lock icon for locked levels
         if (!isUnlocked)
           Positioned(
-            top: 8,
-            right: 8,
+            top: ResponsiveUtils.getResponsiveSpacing(context, 8),
+            right: ResponsiveUtils.getResponsiveSpacing(context, 8),
             child: Container(
-              padding: const EdgeInsets.all(4),
+              padding: EdgeInsets.all(ResponsiveUtils.getResponsiveSpacing(context, 4)),
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                  ResponsiveUtils.getResponsiveSpacing(context, 8)
+                ),
               ),
               child: Icon(
                 Icons.lock,
-                size: 16,
+                size: ResponsiveUtils.getResponsiveIconSize(context) * 0.6,
                 color: Colors.grey.shade400,
               ),
             ),
@@ -471,21 +476,23 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         // Success indicator for completed levels
         if (isCompleted)
           Positioned(
-            top: 8,
-            right: 8,
+            top: ResponsiveUtils.getResponsiveSpacing(context, 8),
+            right: ResponsiveUtils.getResponsiveSpacing(context, 8),
             child: Container(
-              padding: const EdgeInsets.all(4),
+              padding: EdgeInsets.all(ResponsiveUtils.getResponsiveSpacing(context, 4)),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                  ResponsiveUtils.getResponsiveSpacing(context, 8)
+                ),
                 border: Border.all(
                   color: Colors.white.withOpacity(0.3),
                   width: 1,
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.star,
-                size: 16,
+                size: ResponsiveUtils.getResponsiveIconSize(context) * 0.6,
                 color: Colors.white,
               ),
             ),
