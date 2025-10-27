@@ -148,9 +148,12 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               children: [
                 _buildAnimatedBackground(),
                 SafeArea(
-                  child: _showHowToPlayModal
-                      ? _buildHowToPlayModal()
-                      : _buildHomeContent(),
+                  child: Stack(
+                    children: [
+                      _buildHomeContent(),
+                      if (_showHowToPlayModal) _buildHowToPlayModal(),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -519,34 +522,26 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildHowToPlayModal() {
-    return Stack(
-      children: [
-        // Show the home screen content behind the modal
-        _buildHomeContent(),
-        // Semi-transparent overlay
-        Container(
-          color: Colors.black.withOpacity(0.5),
-          child: Center(
-            child: AnimatedBuilder(
-              animation: _modalAnimationController,
-              builder: (context, child) {
-                final scale = AppConstants.modalScaleMin + 
-                    (_modalAnimationController.value * (AppConstants.modalScaleMax - AppConstants.modalScaleMin));
-                return Transform.scale(
-                  scale: scale,
-                  child: Opacity(
-                    opacity: _modalAnimationController.value,
-                    child: child,
-                  ),
-                );
-              },
-              child: StartupModal(
-                onClose: _hideHowToPlay,
+    return Positioned.fill(
+      child: Center(
+        child: AnimatedBuilder(
+          animation: _modalAnimationController,
+          builder: (context, child) {
+            final scale = AppConstants.modalScaleMin + 
+                (_modalAnimationController.value * (AppConstants.modalScaleMax - AppConstants.modalScaleMin));
+            return Transform.scale(
+              scale: scale,
+              child: Opacity(
+                opacity: _modalAnimationController.value,
+                child: child,
               ),
-            ),
+            );
+          },
+          child: StartupModal(
+            onClose: _hideHowToPlay,
           ),
         ),
-      ],
+      ),
     );
   }
 }

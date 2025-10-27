@@ -13,7 +13,12 @@ class ModalContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(AppConstants.modalMargin),
-      padding: const EdgeInsets.all(AppConstants.modalPadding),
+      padding: const EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 15,
+        bottom: AppConstants.modalPadding,
+      ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppConstants.modalBorderRadius),
         border: Border.all(
