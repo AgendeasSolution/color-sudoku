@@ -11,6 +11,13 @@ class ValidationUtils {
     }
 
     final pos = gameState.path[gameState.currentStep];
+    
+    // Check if trying to place on a prefilled cell
+    final cellKey = '${pos.row},${pos.col}';
+    if (gameState.prefilledCells.contains(cellKey)) {
+      return false; // Cannot place on prefilled cells
+    }
+    
     return GameLogicService.isPlacementValid(
       gameState.gridState,
       pos.row,
@@ -21,7 +28,9 @@ class ValidationUtils {
   }
 
   static bool isGameComplete(GameState gameState) {
-    return gameState.currentStep == gameState.gridSize * gameState.gridSize;
+    // Game is complete when all non-prefilled cells in the path are filled
+    // This happens when currentStep reaches the end of the path
+    return gameState.currentStep >= gameState.path.length;
   }
 
   static bool isGameOver(GameState gameState) {

@@ -10,6 +10,7 @@ class GameState {
   final int currentStep;
   final bool isGameOver;
   final List<GameStateSnapshot> history; // For undo functionality
+  final Set<String> prefilledCells; // Stored as "row,col" strings
 
   const GameState({
     required this.currentLevel,
@@ -21,6 +22,7 @@ class GameState {
     required this.currentStep,
     required this.isGameOver,
     this.history = const [],
+    this.prefilledCells = const {},
   });
 
   GameState copyWith({
@@ -33,6 +35,7 @@ class GameState {
     int? currentStep,
     bool? isGameOver,
     List<GameStateSnapshot>? history,
+    Set<String>? prefilledCells,
   }) {
     return GameState(
       currentLevel: currentLevel ?? this.currentLevel,
@@ -44,6 +47,7 @@ class GameState {
       currentStep: currentStep ?? this.currentStep,
       isGameOver: isGameOver ?? this.isGameOver,
       history: history ?? this.history,
+      prefilledCells: prefilledCells ?? this.prefilledCells,
     );
   }
 

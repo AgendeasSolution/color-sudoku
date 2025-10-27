@@ -45,6 +45,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     path: [],
     currentStep: 0,
     isGameOver: false,
+    prefilledCells: {},
   );
   
   Map<String, Color> _colors = {};

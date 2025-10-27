@@ -14,6 +14,18 @@ class SolverService {
     print('SolverService: Starting solve for level ${gameState.currentLevel}');
     print('SolverService: Grid size ${gameState.gridSize}, Colors: ${gameState.colorNames.length}');
     print('SolverService: Current step: ${gameState.currentStep}');
+    print('SolverService: Prefilled cells: ${gameState.prefilledCells.length}');
+    
+    // Count empty cells that need to be filled
+    int emptyCells = 0;
+    for (int row = 0; row < gameState.gridSize; row++) {
+      for (int col = 0; col < gameState.gridSize; col++) {
+        if (gameState.gridState[row][col] == null) {
+          emptyCells++;
+        }
+      }
+    }
+    print('SolverService: Empty cells to fill: $emptyCells');
     
     // Start with the current board state instead of empty board
     var boardCopy = gameState.gridState.map((row) => List<String?>.from(row)).toList();
@@ -29,12 +41,13 @@ class SolverService {
       gameState.path,
       gameState.colorNames,
       gameState.gridSize,
+      gameState.prefilledCells, // Pass prefilled cells
     );
 
     print('SolverService: Solve completed. Found solution: $solved');
     print('SolverService: Solution steps: ${solutionSteps.length}');
 
-    if (solved && solutionSteps.length == (gameState.gridSize * gameState.gridSize - gameState.currentStep)) {
+    if (solved && solutionSteps.length == emptyCells) {
       return solutionSteps;
     } else {
       print('SolverService: Recursive solver failed, using fallback solution');
@@ -49,6 +62,12 @@ class SolverService {
     // Create a simple cycling pattern that only fills remaining empty cells
     for (int i = gameState.currentStep; i < gameState.path.length; i++) {
       final pos = gameState.path[i];
+      final cellKey = '${pos.row},${pos.col}';
+      
+      // Skip if this cell is prefilled
+      if (gameState.prefilledCells.contains(cellKey)) {
+        continue;
+      }
       
       // Skip if this cell is already filled
       if (gameState.gridState[pos.row][pos.col] != null) {
@@ -79,46 +98,6 @@ class SolverService {
     return solutionSteps;
   }
 
-  static String _findBestColorForPosition(
-    List<List<String?>> board,
-    CellPosition pos,
-    List<String> colorNames,
-    Map<String, int> counts,
-    int gridSize,
-  ) {
-    // Count colors in current row and column
-    var rowColors = <String, int>{};
-    var colColors = <String, int>{};
-    
-    for (int i = 0; i < gridSize; i++) {
-      if (board[pos.row][i] != null) {
-        rowColors[board[pos.row][i]!] = (rowColors[board[pos.row][i]] ?? 0) + 1;
-      }
-      if (board[i][pos.col] != null) {
-        colColors[board[i][pos.col]!] = (colColors[board[i][pos.col]] ?? 0) + 1;
-      }
-    }
-    
-    // Find color that appears least in row and column
-    String? bestColor;
-    int minCount = 999;
-    
-    for (final color in colorNames) {
-      if (counts[color]! > 0) {
-        final rowCount = rowColors[color] ?? 0;
-        final colCount = colColors[color] ?? 0;
-        final totalCount = rowCount + colCount;
-        
-        if (totalCount < minCount) {
-          minCount = totalCount;
-          bestColor = color;
-        }
-      }
-    }
-    
-    return bestColor ?? colorNames[0];
-  }
-
   static bool _solve(
     List<List<String?>> board,
     Map<String, int> counts,
@@ -127,10 +106,22 @@ class SolverService {
     List<CellPosition> path,
     List<String> colorNames,
     int gridSize,
+    Set<String> prefilledCells,
   ) {
-    if (step == gridSize * gridSize) return true;
+    if (step >= path.length) return true;
 
     final pos = path[step];
+    final cellKey = '${pos.row},${pos.col}';
+    
+    // Skip prefilled cells - just advance to next step
+    if (prefilledCells.contains(cellKey)) {
+      return _solve(board, counts, step + 1, solutionSteps, path, colorNames, gridSize, prefilledCells);
+    }
+    
+    // If cell is already filled (by player or prefilled), skip it
+    if (board[pos.row][pos.col] != null) {
+      return _solve(board, counts, step + 1, solutionSteps, path, colorNames, gridSize, prefilledCells);
+    }
     
     // Try colors in a deterministic order for better performance
     for (final color in colorNames) {
@@ -140,7 +131,7 @@ class SolverService {
         counts[color] = counts[color]! - 1;
         solutionSteps.add(SolutionStep(pos, color));
 
-        if (_solve(board, counts, step + 1, solutionSteps, path, colorNames, gridSize)) {
+        if (_solve(board, counts, step + 1, solutionSteps, path, colorNames, gridSize, prefilledCells)) {
           return true;
         }
 
