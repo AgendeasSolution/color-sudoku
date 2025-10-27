@@ -112,7 +112,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final adShown = await InterstitialAdService.instance.showAdWithProbability(
       onAdDismissed: () {
         // This callback is called when ad is dismissed
-        _startLevel(levelIndex);
+        if (levelIndex == _gameState.currentLevel) {
+          // Same level - reset preserving pre-filled cells
+          setState(() {
+            _gameState = GameLogicService.resetLevel(_gameState);
+          });
+        } else {
+          // Different level - start new level
+          _startLevel(levelIndex);
+        }
         // Preload next ad for future use
         InterstitialAdService.instance.preloadAd();
       },
@@ -120,7 +128,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     // If ad was not shown (50% chance), restart immediately
     if (!adShown) {
-      _startLevel(levelIndex);
+      if (levelIndex == _gameState.currentLevel) {
+        // Same level - reset preserving pre-filled cells
+        setState(() {
+          _gameState = GameLogicService.resetLevel(_gameState);
+        });
+      } else {
+        // Different level - start new level
+        _startLevel(levelIndex);
+      }
       // Preload next ad for future use
       InterstitialAdService.instance.preloadAd();
     }
@@ -170,6 +186,62 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       } else if (ValidationUtils.isGameOver(_gameState)) {
         _gameOver();
       }
+    });
+  }
+
+  void _showSolution() {
+    // Try to solve the puzzle
+    final solution = GameLogicService.solvePuzzle(_gameState);
+
+    if (solution != null) {
+      // Animate the solution step by step following the snake path
+      _animateSolution(solution);
+    } else {
+      // If no solution found, show error modal
+      _showModal(ModalType.noSolution);
+    }
+  }
+
+  void _animateSolution(List<List<String?>> completeSolution) {
+    // Get the current path
+    final path = _gameState.path;
+    
+    // Start animation
+    int currentIndex = 0;
+    
+    // Timer to animate each cell
+    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (currentIndex >= path.length) {
+        timer.cancel();
+        // Mark game as over after animation completes
+        setState(() {
+          _gameState = _gameState.copyWith(isGameOver: true);
+        });
+        return;
+      }
+      
+      final pos = path[currentIndex];
+      
+      // Only animate cells that are currently empty (not pre-filled)
+      if (_gameState.gridState[pos.row][pos.col] == null) {
+        final color = completeSolution[pos.row][pos.col];
+        
+        setState(() {
+          final newGridState = _gameState.gridState.map((row) => List<String?>.from(row)).toList();
+          newGridState[pos.row][pos.col] = color;
+          
+          _gameState = _gameState.copyWith(gridState: newGridState);
+        });
+      }
+      
+      currentIndex++;
+    });
+  }
+
+  void _playAgain() {
+    // Reset the level preserving pre-filled cells
+    setState(() {
+      _gameState = GameLogicService.resetLevel(_gameState);
     });
   }
 
@@ -439,97 +511,188 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildActionButtonsRow() {
+    // Check if solution has been shown (game is over due to solution, not win/loss)
+    final bool solutionShown = _gameState.isGameOver && 
+                                _gameState.gridState.every((row) => row.every((cell) => cell != null)) &&
+                                !ValidationUtils.isGameComplete(_gameState);
+
     return Positioned(
       top: ResponsiveUtils.getSolutionButtonTopPosition(context),
       left: 0,
       right: 0,
       child: Padding(
         padding: ResponsiveUtils.getTopNavBarPadding(context),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Undo button
-            Expanded(
-              child: GestureDetector(
-                onTap: _gameState.history.isEmpty ? null : _undoMove,
-                child: Container(
-                  padding: ResponsiveUtils.getSolutionButtonPadding(context),
-                  decoration: BoxDecoration(
-                    color: _gameState.history.isEmpty 
-                        ? AppConstants.borderColor.withOpacity(0.5)
-                        : AppConstants.successColor,
-                    borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.undo,
-                        color: AppConstants.textPrimaryColor,
-                        size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
-                      ),
-                      SizedBox(
-                        width: ResponsiveUtils.getResponsiveSpacing(context, 4),
-                      ),
-                      Flexible(
-                        child: Text(
-                          'Undo',
-                          style: TextStyle(
-                            fontFamily: AppConstants.primaryFontFamily,
-                            fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
-                            fontWeight: AppConstants.boldWeight,
-                            color: AppConstants.textPrimaryColor,
-                          ),
-                          textAlign: TextAlign.center,
+        child: solutionShown
+            ? _buildPlayAgainButton()
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Solution button
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: !_gameState.isGameOver ? _showSolution : null,
+                      child: Container(
+                        padding: ResponsiveUtils.getSolutionButtonPadding(context),
+                        decoration: BoxDecoration(
+                          color: _gameState.isGameOver
+                              ? AppConstants.borderColor.withOpacity(0.5)
+                              : const Color(0xFFD69E2E), // Gold color for solution button
+                          borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.lightbulb,
+                              color: AppConstants.textPrimaryColor,
+                              size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
+                            ),
+                            SizedBox(
+                              width: ResponsiveUtils.getResponsiveSpacing(context, 4),
+                            ),
+                            Flexible(
+                              child: Text(
+                                'Solution',
+                                style: TextStyle(
+                                  fontFamily: AppConstants.primaryFontFamily,
+                                  fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
+                                  fontWeight: AppConstants.boldWeight,
+                                  color: AppConstants.textPrimaryColor,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ),
-            
-            SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 8)),
-            
-            // Reset button (right)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => _restartLevelWithAd(_gameState.currentLevel),
-                child: Container(
-                  padding: ResponsiveUtils.getSolutionButtonPadding(context),
-                  decoration: BoxDecoration(
-                    color: AppConstants.errorColor,
-                    borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.refresh,
-                        color: AppConstants.textPrimaryColor,
-                        size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
-                      ),
-                      SizedBox(
-                        width: ResponsiveUtils.getResponsiveSpacing(context, 4),
-                      ),
-                      Flexible(
-                        child: Text(
-                          'Reset',
-                          style: TextStyle(
-                            fontFamily: AppConstants.primaryFontFamily,
-                            fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
-                            fontWeight: AppConstants.boldWeight,
-                            color: AppConstants.textPrimaryColor,
-                          ),
-                          textAlign: TextAlign.center,
+                  
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 8)),
+                  
+                  // Undo button
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: _gameState.history.isEmpty ? null : _undoMove,
+                      child: Container(
+                        padding: ResponsiveUtils.getSolutionButtonPadding(context),
+                        decoration: BoxDecoration(
+                          color: _gameState.history.isEmpty 
+                              ? AppConstants.borderColor.withOpacity(0.5)
+                              : AppConstants.successColor,
+                          borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.undo,
+                              color: AppConstants.textPrimaryColor,
+                              size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
+                            ),
+                            SizedBox(
+                              width: ResponsiveUtils.getResponsiveSpacing(context, 4),
+                            ),
+                            Flexible(
+                              child: Text(
+                                'Undo',
+                                style: TextStyle(
+                                  fontFamily: AppConstants.primaryFontFamily,
+                                  fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
+                                  fontWeight: AppConstants.boldWeight,
+                                  color: AppConstants.textPrimaryColor,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 8)),
+                  
+                  // Reset button
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _restartLevelWithAd(_gameState.currentLevel),
+                      child: Container(
+                        padding: ResponsiveUtils.getSolutionButtonPadding(context),
+                        decoration: BoxDecoration(
+                          color: AppConstants.errorColor,
+                          borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.refresh,
+                              color: AppConstants.textPrimaryColor,
+                              size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
+                            ),
+                            SizedBox(
+                              width: ResponsiveUtils.getResponsiveSpacing(context, 4),
+                            ),
+                            Flexible(
+                              child: Text(
+                                'Reset',
+                                style: TextStyle(
+                                  fontFamily: AppConstants.primaryFontFamily,
+                                  fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
+                                  fontWeight: AppConstants.boldWeight,
+                                  color: AppConstants.textPrimaryColor,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+      ),
+    );
+  }
+
+  Widget _buildPlayAgainButton() {
+    return Center(
+      child: SizedBox(
+        width: double.infinity,
+        child: GestureDetector(
+          onTap: _playAgain,
+          child: Container(
+            padding: ResponsiveUtils.getSolutionButtonPadding(context),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD69E2E), // Gold color
+              borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
             ),
-          ],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.refresh,
+                  color: AppConstants.textPrimaryColor,
+                  size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
+                ),
+                SizedBox(
+                  width: ResponsiveUtils.getResponsiveSpacing(context, 8),
+                ),
+                Text(
+                  'Play Again',
+                  style: TextStyle(
+                    fontFamily: AppConstants.primaryFontFamily,
+                    fontSize: ResponsiveUtils.getSolutionButtonFontSize(context) * 1.2,
+                    fontWeight: AppConstants.boldWeight,
+                    color: AppConstants.textPrimaryColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -567,10 +730,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     final col = index % _gameState.gridSize;
                     final isNextCell = nextPos != null && nextPos.row == row && nextPos.col == col;
                     final colorName = _gameState.gridState[row][col];
+                    final isPrefilled = _gameState.preFilledCells.contains('$row,$col');
 
                     Widget cell = GridCell(
                       color: colorName != null ? _colors[colorName] : null,
                       isNext: isNextCell,
+                      isPrefilled: isPrefilled,
                     );
 
                     if (_shakingCell?.row == row && _shakingCell?.col == col) {

@@ -5,11 +5,13 @@ import 'ball.dart';
 class GridCell extends StatefulWidget {
   final Color? color;
   final bool isNext;
+  final bool isPrefilled;
 
   const GridCell({
     super.key,
     this.color,
     this.isNext = false,
+    this.isPrefilled = false,
   });
 
   @override
@@ -78,11 +80,21 @@ class _GridCellState extends State<GridCell> with SingleTickerProviderStateMixin
                     blurRadius: AppConstants.cellNextShadowBlur,
                     spreadRadius: AppConstants.cellShadowSpread,
                   )]
-                : const [BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  )],
+                : widget.isPrefilled
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.4),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        )
+                      ]
+                    : const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        )
+                      ],
           ),
           child: child,
         );
@@ -92,9 +104,13 @@ class _GridCellState extends State<GridCell> with SingleTickerProviderStateMixin
               widthFactor: AppConstants.ballSizeFactor,
               heightFactor: AppConstants.ballSizeFactor,
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
+                duration: widget.isPrefilled 
+                    ? Duration.zero 
+                    : const Duration(milliseconds: 300),
                 transitionBuilder: (child, animation) {
-                  return ScaleTransition(scale: animation, child: child);
+                  return widget.isPrefilled 
+                      ? (child ?? const SizedBox())
+                      : ScaleTransition(scale: animation, child: child);
                 },
                 child: Ball(key: ValueKey(widget.color), color: widget.color!),
               ),
