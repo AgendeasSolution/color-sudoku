@@ -60,6 +60,47 @@ class GameLogicService {
     return true;
   }
 
+  /// Returns list of cell positions that conflict with placing a color at the given position
+  static List<CellPosition> getConflictingCells(
+    List<List<String?>> gridState,
+    int row,
+    int col,
+    String color,
+    int gridSize,
+  ) {
+    final conflictingCells = <CellPosition>[];
+    
+    // Check 8 adjacent neighbors
+    for (int rOff = -1; rOff <= 1; rOff++) {
+      for (int cOff = -1; cOff <= 1; cOff++) {
+        if (rOff == 0 && cOff == 0) continue;
+        int checkRow = row + rOff;
+        int checkCol = col + cOff;
+        if (checkRow >= 0 && checkRow < gridSize && checkCol >= 0 && checkCol < gridSize) {
+          if (gridState[checkRow][checkCol] == color) {
+            conflictingCells.add(CellPosition(checkRow, checkCol));
+          }
+        }
+      }
+    }
+    
+    // Check row
+    for (int c = 0; c < gridSize; c++) {
+      if (gridState[row][c] == color) {
+        conflictingCells.add(CellPosition(row, c));
+      }
+    }
+    
+    // Check column
+    for (int r = 0; r < gridSize; r++) {
+      if (gridState[r][col] == color) {
+        conflictingCells.add(CellPosition(r, col));
+      }
+    }
+    
+    return conflictingCells;
+  }
+
   static Set<String> getInvalidColorsForNextStep(
     List<List<String?>> gridState,
     List<CellPosition> path,

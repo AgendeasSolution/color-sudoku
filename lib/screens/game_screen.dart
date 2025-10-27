@@ -46,7 +46,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   );
   
   Map<String, Color> _colors = {};
-  CellPosition? _shakingCell;
+  List<CellPosition> _conflictingCells = [];
 
   // UI State
   ModalType _activeModal = ModalType.none;
@@ -55,9 +55,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   late final AnimationController _bgAnimationController;
   late final AnimationController _modalAnimationController;
   late final AnimationController _shakeAnimationController;
+  late final AnimationController _ballTapAnimationController;
 
   // Key to access GridView state for animations
   final GlobalKey _gridKey = GlobalKey();
+  
+  // Track which color ball is being animated
+  String? _animatingColor;
 
   @override
   void initState() {
@@ -82,7 +86,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     _shakeAnimationController = AnimationController(
       vsync: this,
-      duration: AppConstants.shakeAnimationDuration,
+      duration: const Duration(milliseconds: 460), // 1.3x faster
+    );
+    
+    _ballTapAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
     );
   }
 
@@ -91,6 +100,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _bgAnimationController.dispose();
     _modalAnimationController.dispose();
     _shakeAnimationController.dispose();
+    _ballTapAnimationController.dispose();
     super.dispose();
   }
 
@@ -164,7 +174,20 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _handleColorSelection(String color) {
     if (!ValidationUtils.canPlaceColor(_gameState, color)) {
-      _showInvalidMoveWarning(_gameState.path[_gameState.currentStep]);
+      // Trigger animation for the selected color ball only if invalid
+      setState(() {
+        _animatingColor = color;
+      });
+      _ballTapAnimationController.forward(from: 0.0).then((_) {
+        if (mounted) {
+          setState(() {
+            _animatingColor = null;
+          });
+        }
+      });
+      
+      final pos = _gameState.path[_gameState.currentStep];
+      _showInvalidMoveWarning(pos, color);
       return;
     }
 
@@ -286,9 +309,25 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   // --- UI and Animation Methods ---
 
-  void _showInvalidMoveWarning(CellPosition pos) {
-    setState(() => _shakingCell = pos);
-    _shakeAnimationController.forward(from: 0.0);
+  void _showInvalidMoveWarning(CellPosition pos, String color) {
+    setState(() {
+      // Don't shake the target cell - only show conflicting cells
+      // Get all cells that conflict with this color placement
+      _conflictingCells = GameLogicService.getConflictingCells(
+        _gameState.gridState,
+        pos.row,
+        pos.col,
+        color,
+        _gameState.gridSize,
+      );
+    });
+    _shakeAnimationController.forward(from: 0.0).then((_) {
+      if (mounted) {
+        setState(() {
+          _conflictingCells = [];
+        });
+      }
+    });
   }
 
   void _showModal(ModalType type) {
@@ -731,26 +770,49 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     final isNextCell = nextPos != null && nextPos.row == row && nextPos.col == col;
                     final colorName = _gameState.gridState[row][col];
                     final isPrefilled = _gameState.preFilledCells.contains('$row,$col');
+                    
+                    // Check if this cell is a conflicting cell
+                    final isConflictingCell = _conflictingCells.any(
+                      (cell) => cell.row == row && cell.col == col,
+                    );
 
                     Widget cell = GridCell(
                       color: colorName != null ? _colors[colorName] : null,
                       isNext: isNextCell,
                       isPrefilled: isPrefilled,
                     );
-
-                    if (_shakingCell?.row == row && _shakingCell?.col == col) {
+                    
+                    // Animate conflicting cells (balls that prevent placement)
+                    if (isConflictingCell && colorName != null) {
                       return AnimatedBuilder(
                         animation: _shakeAnimationController,
                         builder: (context, child) {
-                          double offset = sin(_shakeAnimationController.value * 2 * pi) * AppConstants.shakeAmplitude;
+                          // Faster shake (1.3x frequency)
+                          double offset = sin(_shakeAnimationController.value * 2 * pi * 1.3) * AppConstants.shakeAmplitude;
+                          // Smoother pulse for the red glow
+                          double glowOpacity = 0.4 + 0.3 * sin(_shakeAnimationController.value * 2 * pi);
+                          
                           return Transform.translate(
                             offset: Offset(offset, 0),
-                            child: child,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.withOpacity(glowOpacity),
+                                    blurRadius: 15,
+                                    spreadRadius: 3,
+                                  ),
+                                ],
+                              ),
+                              child: child,
+                            ),
                           );
                         },
                         child: cell,
                       );
                     }
+                    
                     return cell;
                   },
                 ),
@@ -824,12 +886,28 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               final count = _gameState.ballCounts[colorName]!;
               // Block colors based on availability and validity
               final isEnabled = count > 0 && !invalidColors.contains(colorName);
+              final isAnimating = _animatingColor == colorName;
+              
               return Padding(
                 padding: EdgeInsets.symmetric(horizontal: ResponsiveUtils.isMobile(context) ? 2.0 : 4.0),
                 child: GestureDetector(
-                  onTap: isEnabled ? () => _handleColorSelection(colorName) : null,
-                  child: Opacity(
-                    opacity: isEnabled ? 1.0 : 0.4,
+                  onTap: () => _handleColorSelection(colorName),
+                  child: AnimatedBuilder(
+                    animation: _ballTapAnimationController,
+                    builder: (context, child) {
+                      if (!isAnimating) return child!;
+                      
+                      // Create a horizontal transform animation
+                      final animationValue = _ballTapAnimationController.value;
+                      final translateX = (animationValue < 0.5 
+                        ? animationValue * 2 * 10 
+                        : (1 - animationValue) * 2 * 10);
+                      
+                      return Transform.translate(
+                        offset: Offset(translateX, 0),
+                        child: child,
+                      );
+                    },
                     child: ColorBall(
                       color: _colors[colorName]!,
                       count: count,
