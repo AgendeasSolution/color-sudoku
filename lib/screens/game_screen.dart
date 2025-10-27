@@ -107,6 +107,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     setState(() {
       _gameState = GameLogicService.initializeGame(levelIndex);
+      _gameState = _gameState.copyWith(history: []); // Clear history for new level
       _colors = ColorUtils.getColorsForLevel(_gameState.colorNames);
       _solutionShown = false; // Reset solution shown state for new level
       _justWatchedSolutionAd = false; // Reset solution ad flag for new level
@@ -160,6 +161,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     }
 
     setState(() {
+      // Save current state to history before making a move
+      final history = List<GameStateSnapshot>.from(_gameState.history);
+      history.add(GameStateSnapshot(
+        gridState: _gameState.gridState.map((row) => List<String?>.from(row)).toList(),
+        ballCounts: Map<String, int>.from(_gameState.ballCounts),
+        currentStep: _gameState.currentStep,
+      ));
+      
+      // Update history and place ball
+      _gameState = _gameState.copyWith(history: history);
       _gameState = GameLogicService.placeBall(_gameState, color);
       
       if (ValidationUtils.isGameComplete(_gameState)) {
@@ -167,6 +178,23 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       } else if (ValidationUtils.isGameOver(_gameState)) {
         _gameOver();
       }
+    });
+  }
+
+  void _undoMove() {
+    if (_gameState.history.isEmpty) return;
+    
+    setState(() {
+      final history = List<GameStateSnapshot>.from(_gameState.history);
+      final previousState = history.removeLast();
+      
+      _gameState = _gameState.copyWith(
+        gridState: previousState.gridState.map((row) => List<String?>.from(row)).toList(),
+        ballCounts: Map<String, int>.from(previousState.ballCounts),
+        currentStep: previousState.currentStep,
+        history: history,
+        isGameOver: false, // Reset game over state on undo
+      );
     });
   }
 
@@ -506,8 +534,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           right: 0,
           child: _buildTopNavBar(),
         ),
-        // Solution button - positioned below nav bar (will be handled in _buildSolutionButton)
-        _buildSolutionButton(),
+        // Action buttons row - positioned below nav bar
+        _buildActionButtonsRow(),
         // Centered game elements - truly centered on screen
         Center(
           child: Column(
@@ -559,72 +587,146 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             ),
           ),
           const Spacer(),
-          // Reset button (right) - icon only
-          GestureDetector(
-            onTap: () => _restartLevelWithAd(_gameState.currentLevel),
-            child: Container(
-              padding: EdgeInsets.all(
-                ResponsiveUtils.getResponsiveSpacing(context, AppConstants.smallSpacing)
-              ),
-              decoration: BoxDecoration(
-                color: AppConstants.errorColor,
-                borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
-              ),
-              child: Icon(
-                Icons.refresh,
-                color: AppConstants.textPrimaryColor,
-                size: ResponsiveUtils.getResponsiveIconSize(context),
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildSolutionButton() {
-    // Hide solution button if solution has already been shown
-    if (_solutionShown) {
-      return const SizedBox.shrink();
-    }
-    
+  Widget _buildActionButtonsRow() {
     return Positioned(
       top: ResponsiveUtils.getSolutionButtonTopPosition(context),
       left: 0,
       right: 0,
-      child: Center(
-        child: GestureDetector(
-          onTap: _showSolution,
-          child: Container(
-            padding: ResponsiveUtils.getSolutionButtonPadding(context),
-            decoration: BoxDecoration(
-              color: AppConstants.warningColor,
-              borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '🎁',
-                  style: TextStyle(
-                    fontSize: ResponsiveUtils.getResponsiveIconSize(context) * 0.7,
+      child: Padding(
+        padding: ResponsiveUtils.getTopNavBarPadding(context),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Solution button (left) - only visible if solution not shown
+            if (!_solutionShown) ...[
+              Expanded(
+                child: GestureDetector(
+                  onTap: _showSolution,
+                  child: Container(
+                    padding: ResponsiveUtils.getSolutionButtonPadding(context),
+                    decoration: BoxDecoration(
+                      color: AppConstants.warningColor,
+                      borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '🎁',
+                          style: TextStyle(
+                            fontSize: ResponsiveUtils.getResponsiveIconSize(context) * 0.7,
+                          ),
+                        ),
+                        SizedBox(
+                          width: ResponsiveUtils.getResponsiveSpacing(context, 4),
+                        ),
+                        Flexible(
+                          child: Text(
+                            'Solution',
+                            style: TextStyle(
+                              fontFamily: AppConstants.primaryFontFamily,
+                              fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
+                              fontWeight: AppConstants.boldWeight,
+                              color: AppConstants.textPrimaryColor,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                SizedBox(
-                  width: ResponsiveUtils.getResponsiveSpacing(context, AppConstants.smallSpacing),
-                ),
-                Text(
-                  'Watch Ad for Solution',
-                  style: TextStyle(
-                    fontFamily: AppConstants.primaryFontFamily,
-                    fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
-                    fontWeight: AppConstants.boldWeight,
-                    color: AppConstants.textPrimaryColor,
+              ),
+              SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 8)),
+            ],
+            
+            // Undo button
+            Expanded(
+              child: GestureDetector(
+                onTap: _gameState.history.isEmpty ? null : _undoMove,
+                child: Container(
+                  padding: ResponsiveUtils.getSolutionButtonPadding(context),
+                  decoration: BoxDecoration(
+                    color: _gameState.history.isEmpty 
+                        ? AppConstants.borderColor.withOpacity(0.5)
+                        : AppConstants.successColor,
+                    borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.undo,
+                        color: AppConstants.textPrimaryColor,
+                        size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
+                      ),
+                      SizedBox(
+                        width: ResponsiveUtils.getResponsiveSpacing(context, 4),
+                      ),
+                      Flexible(
+                        child: Text(
+                          'Undo',
+                          style: TextStyle(
+                            fontFamily: AppConstants.primaryFontFamily,
+                            fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
+                            fontWeight: AppConstants.boldWeight,
+                            color: AppConstants.textPrimaryColor,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+            
+            SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 8)),
+            
+            // Reset button (right)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _restartLevelWithAd(_gameState.currentLevel),
+                child: Container(
+                  padding: ResponsiveUtils.getSolutionButtonPadding(context),
+                  decoration: BoxDecoration(
+                    color: AppConstants.errorColor,
+                    borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.refresh,
+                        color: AppConstants.textPrimaryColor,
+                        size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
+                      ),
+                      SizedBox(
+                        width: ResponsiveUtils.getResponsiveSpacing(context, 4),
+                      ),
+                      Flexible(
+                        child: Text(
+                          'Reset',
+                          style: TextStyle(
+                            fontFamily: AppConstants.primaryFontFamily,
+                            fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
+                            fontWeight: AppConstants.boldWeight,
+                            color: AppConstants.textPrimaryColor,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

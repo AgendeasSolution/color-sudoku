@@ -9,6 +9,7 @@ class GameState {
   final List<CellPosition> path;
   final int currentStep;
   final bool isGameOver;
+  final List<GameStateSnapshot> history; // For undo functionality
 
   const GameState({
     required this.currentLevel,
@@ -19,6 +20,7 @@ class GameState {
     required this.path,
     required this.currentStep,
     required this.isGameOver,
+    this.history = const [],
   });
 
   GameState copyWith({
@@ -30,6 +32,7 @@ class GameState {
     List<CellPosition>? path,
     int? currentStep,
     bool? isGameOver,
+    List<GameStateSnapshot>? history,
   }) {
     return GameState(
       currentLevel: currentLevel ?? this.currentLevel,
@@ -40,6 +43,7 @@ class GameState {
       path: path ?? this.path,
       currentStep: currentStep ?? this.currentStep,
       isGameOver: isGameOver ?? this.isGameOver,
+      history: history ?? this.history,
     );
   }
 
@@ -47,4 +51,16 @@ class GameState {
   String toString() {
     return 'GameState(currentLevel: $currentLevel, gridSize: $gridSize, currentStep: $currentStep, isGameOver: $isGameOver)';
   }
+}
+
+class GameStateSnapshot {
+  final List<List<String?>> gridState;
+  final Map<String, int> ballCounts;
+  final int currentStep;
+
+  const GameStateSnapshot({
+    required this.gridState,
+    required this.ballCounts,
+    required this.currentStep,
+  });
 }
