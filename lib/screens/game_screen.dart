@@ -470,25 +470,45 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              Expanded(
-                child: Stack(
+      body: AnimatedBuilder(
+        animation: _bgAnimationController,
+        builder: (context, child) {
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppConstants.backgroundColor,
+                  AppConstants.secondaryBackgroundColor,
+                  AppConstants.tertiaryBackgroundColor,
+                  AppConstants.backgroundColor,
+                ],
+                stops: [0.0, 0.3, 0.7, 1.0],
+              ),
+            ),
+            child: Stack(
+              children: [
+                Column(
                   children: [
-                    _buildAnimatedBackground(),
-                    SafeArea(
-                      child: _buildGameUI(),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          _buildAnimatedBackground(),
+                          SafeArea(
+                            child: _buildGameUI(),
+                          ),
+                        ],
+                      ),
                     ),
+                    const AdBanner(),
                   ],
                 ),
-              ),
-              const AdBanner(),
-            ],
-          ),
-          if (_activeModal != ModalType.none) _buildModalOverlay(),
-        ],
+                if (_activeModal != ModalType.none) _buildModalOverlay(),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -563,13 +583,18 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         _buildActionButtonsRow(),
         // Centered game elements - truly centered on screen
         Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildGameGrid(),
-              SizedBox(height: ResponsiveUtils.getGameElementSpacing(context)),
-              _buildColorPalette(),
-            ],
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: ResponsiveUtils.getGameCenterOffset(context),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildGameGrid(),
+                SizedBox(height: ResponsiveUtils.getGameElementSpacing(context)),
+                _buildColorPalette(),
+              ],
+            ),
           ),
         ),
       ],
@@ -603,18 +628,25 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
-          const Spacer(),
-          // Level text (center) - no border or icon
-          Text(
-            'Level ${_gameState.currentLevel + 1}',
-            style: TextStyle(
-              fontFamily: AppConstants.primaryFontFamily,
-              fontSize: ResponsiveUtils.getTitleFontSize(context),
-              fontWeight: AppConstants.boldWeight,
-              color: AppConstants.textPrimaryColor,
+          // Level text (center) - balanced layout
+          Expanded(
+            child: Center(
+              child: Text(
+                'Level ${_gameState.currentLevel + 1}',
+                style: TextStyle(
+                  fontFamily: AppConstants.primaryFontFamily,
+                  fontSize: ResponsiveUtils.getTitleFontSize(context),
+                  fontWeight: AppConstants.boldWeight,
+                  color: AppConstants.textPrimaryColor,
+                ),
+              ),
             ),
           ),
-          const Spacer(),
+          // Invisible spacer to balance the left button
+          SizedBox(
+            width: ResponsiveUtils.getResponsiveIconSize(context) + 
+                   (ResponsiveUtils.getResponsiveSpacing(context, AppConstants.smallSpacing) * 2),
+          ),
         ],
       ),
     );
@@ -961,7 +993,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               final isAnimating = _animatingColor == colorName;
               
               return Padding(
-                padding: EdgeInsets.symmetric(horizontal: ResponsiveUtils.isMobile(context) ? 2.0 : 4.0),
+                padding: EdgeInsets.symmetric(horizontal: ResponsiveUtils.isMobile(context) ? 6.0 : 8.0),
                 child: GestureDetector(
                   onTap: () => _handleColorSelection(colorName),
                   child: AnimatedBuilder(

@@ -42,6 +42,7 @@ class GradientLogo extends StatelessWidget {
             style: GoogleFonts.orbitron(
               fontSize: fontSize ?? AppConstants.titleFontSize,
               fontWeight: FontWeight.w900,
+              letterSpacing: 3.0,
               color: Colors.white, // This will be overridden by the gradient
               shadows: [
                 const Shadow(

@@ -325,5 +325,16 @@ class ResponsiveUtils {
       tablet: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     );
   }
+  
+  /// Get responsive game center offset to account for top nav and buttons
+  static double getGameCenterOffset(BuildContext context) {
+    return getResponsiveValue<double>(
+      context: context,
+      smallMobile: 100,
+      mediumMobile: 110,
+      largeMobile: 120,
+      tablet: 130,
+    );
+  }
 }
 
