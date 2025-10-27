@@ -85,6 +85,11 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.initState();
     _initializeAnimationControllers();
     _loadLevelProgression();
+    _initializeAudio();
+  }
+
+  Future<void> _initializeAudio() async {
+    await AudioService().initialize();
   }
 
   void _initializeAnimationControllers() {
@@ -145,25 +150,45 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              Expanded(
-                child: Stack(
+      body: AnimatedBuilder(
+        animation: _bgAnimationController,
+        builder: (context, child) {
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppConstants.backgroundColor,
+                  AppConstants.secondaryBackgroundColor,
+                  AppConstants.tertiaryBackgroundColor,
+                  AppConstants.backgroundColor,
+                ],
+                stops: [0.0, 0.3, 0.7, 1.0],
+              ),
+            ),
+            child: Stack(
+              children: [
+                Column(
                   children: [
-                    _buildAnimatedBackground(),
-                    SafeArea(
-                      child: _buildHomeContent(),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          _buildAnimatedBackground(),
+                          SafeArea(
+                            child: _buildHomeContent(),
+                          ),
+                        ],
+                      ),
                     ),
+                    const AdBanner(),
                   ],
                 ),
-              ),
-              const AdBanner(),
-            ],
-          ),
-          if (_showHowToPlayModal) _buildHowToPlayModal(),
-        ],
+                if (_showHowToPlayModal) _buildHowToPlayModal(),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -239,10 +264,67 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           SizedBox(height: ResponsiveUtils.getGameElementSpacing(context) + ResponsiveUtils.getResponsiveSpacing(context, 8)),
           Expanded(child: _buildLevelGrid()),
           SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 8)),
-          _buildHowToPlayButton(),
+          _buildActionButtons(),
         ],
       ),
     );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildHowToPlayButton(),
+        SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 12)),
+        _buildSoundToggleButton(),
+      ],
+    );
+  }
+
+  void _toggleSound() {
+    AudioService().playButtonClick();
+    setState(() {
+      if (AudioService().isSoundEnabled()) {
+        AudioService().disableSound();
+      } else {
+        AudioService().enableSound();
+      }
+    });
+  }
+
+  Widget _buildSoundToggleButton() {
+    final isSoundEnabled = AudioService().isSoundEnabled();
+    
+    // Calculate fixed width based on the longer text ("Sound Off" is longer than "Sound On")
+    final longerText = 'Sound Off'; // This is longer, so we use it for fixed width
+    final textWidth = _getTextWidth(context, longerText);
+    final iconWidth = ResponsiveUtils.getResponsiveIconSize(context);
+    final spacing = ResponsiveUtils.getResponsiveSpacing(context, AppConstants.smallSpacing);
+    final padding = ResponsiveUtils.getButtonPadding(context);
+    final fixedWidth = textWidth + iconWidth + spacing + padding.horizontal + 20; // extra margin
+    
+    return GameButton(
+      iconData: isSoundEnabled ? Icons.volume_up : Icons.volume_off,
+      text: isSoundEnabled ? 'Sound On' : 'Sound Off',
+      color: AppConstants.primaryAccentColor,
+      onPressed: _toggleSound,
+      fixedWidth: fixedWidth,
+    );
+  }
+
+  double _getTextWidth(BuildContext context, String text) {
+    final textStyle = TextStyle(
+      fontFamily: AppConstants.primaryFontFamily,
+      fontWeight: AppConstants.semiBoldWeight,
+      fontSize: ResponsiveUtils.getBodyFontSize(context),
+    );
+    final textPainter = TextPainter(
+      text: TextSpan(text: text, style: textStyle),
+      maxLines: 1,
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    return textPainter.width;
   }
 
   Widget _buildLogo() {

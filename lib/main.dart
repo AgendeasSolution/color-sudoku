@@ -4,6 +4,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'screens/splash_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/home_screen.dart';
+import 'services/audio_service.dart';
 import 'constants/app_constants.dart';
 
 void main() async {
@@ -11,6 +12,9 @@ void main() async {
   
   // Initialize Google Mobile Ads
   await MobileAds.instance.initialize();
+  
+  // Initialize audio service
+  await AudioService().initialize();
   
   // Set preferred orientations to portrait only
   SystemChrome.setPreferredOrientations([
