@@ -671,42 +671,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 children: [
                   // Solution button
                   Expanded(
-                    child: GestureDetector(
+                    child: _buildActionButton(
+                      icon: Icons.lightbulb,
+                      text: 'Solution',
+                      adLabel: 'Watch Ad',
+                      isEnabled: !_gameState.isGameOver,
+                      color: _gameState.isGameOver
+                          ? AppConstants.borderColor.withOpacity(0.5)
+                          : const Color(0xFFD69E2E), // Gold color for solution button
                       onTap: !_gameState.isGameOver ? _showSolution : null,
-                      child: Container(
-                        padding: ResponsiveUtils.getSolutionButtonPadding(context),
-                        decoration: BoxDecoration(
-                          color: _gameState.isGameOver
-                              ? AppConstants.borderColor.withOpacity(0.5)
-                              : const Color(0xFFD69E2E), // Gold color for solution button
-                          borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.lightbulb,
-                              color: AppConstants.textPrimaryColor,
-                              size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
-                            ),
-                            SizedBox(
-                              width: ResponsiveUtils.getResponsiveSpacing(context, 4),
-                            ),
-                            Flexible(
-                              child: Text(
-                                'Watch Ad for Solution',
-                                style: TextStyle(
-                                  fontFamily: AppConstants.primaryFontFamily,
-                                  fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
-                                  fontWeight: AppConstants.boldWeight,
-                                  color: AppConstants.textPrimaryColor,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                   ),
                   
@@ -714,42 +687,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   
                   // Undo button
                   Expanded(
-                    child: GestureDetector(
+                    child: _buildActionButton(
+                      icon: Icons.undo,
+                      text: 'Undo',
+                      adLabel: null, // No ad for undo
+                      isEnabled: _gameState.history.isNotEmpty,
+                      color: _gameState.history.isEmpty 
+                          ? AppConstants.borderColor.withOpacity(0.5)
+                          : AppConstants.successColor,
                       onTap: _gameState.history.isEmpty ? null : _undoMove,
-                      child: Container(
-                        padding: ResponsiveUtils.getSolutionButtonPadding(context),
-                        decoration: BoxDecoration(
-                          color: _gameState.history.isEmpty 
-                              ? AppConstants.borderColor.withOpacity(0.5)
-                              : AppConstants.successColor,
-                          borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.undo,
-                              color: AppConstants.textPrimaryColor,
-                              size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
-                            ),
-                            SizedBox(
-                              width: ResponsiveUtils.getResponsiveSpacing(context, 4),
-                            ),
-                            Flexible(
-                              child: Text(
-                                'Undo',
-                                style: TextStyle(
-                                  fontFamily: AppConstants.primaryFontFamily,
-                                  fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
-                                  fontWeight: AppConstants.boldWeight,
-                                  color: AppConstants.textPrimaryColor,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                   ),
                   
@@ -757,45 +703,18 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   
                   // Reset button
                   Expanded(
-                    child: GestureDetector(
+                    child: _buildActionButton(
+                      icon: Icons.refresh,
+                      text: 'Reset',
+                      adLabel: 'Watch Ad',
+                      isEnabled: _gameState.history.isNotEmpty,
+                      color: _gameState.history.isEmpty 
+                          ? AppConstants.borderColor.withOpacity(0.5)
+                          : AppConstants.errorColor,
                       onTap: _gameState.history.isEmpty ? null : () {
                         AudioService().playButtonClick();
                         _restartLevelWithAd(_gameState.currentLevel);
                       },
-                      child: Container(
-                        padding: ResponsiveUtils.getSolutionButtonPadding(context),
-                        decoration: BoxDecoration(
-                          color: _gameState.history.isEmpty 
-                              ? AppConstants.borderColor.withOpacity(0.5)
-                              : AppConstants.errorColor,
-                          borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.refresh,
-                              color: AppConstants.textPrimaryColor,
-                              size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
-                            ),
-                            SizedBox(
-                              width: ResponsiveUtils.getResponsiveSpacing(context, 4),
-                            ),
-                            Flexible(
-                              child: Text(
-                                'Reset',
-                                style: TextStyle(
-                                  fontFamily: AppConstants.primaryFontFamily,
-                                  fontSize: ResponsiveUtils.getSolutionButtonFontSize(context),
-                                  fontWeight: AppConstants.boldWeight,
-                                  color: AppConstants.textPrimaryColor,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                   ),
                 ],
@@ -804,40 +723,82 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildPlayAgainButton() {
-    return Center(
-      child: GestureDetector(
-        onTap: _playAgain,
-        child: Container(
-          padding: ResponsiveUtils.getSolutionButtonPadding(context),
-          decoration: BoxDecoration(
-            color: const Color(0xFFD69E2E), // Gold color
-            borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.refresh,
+  Widget _buildActionButton({
+    required IconData icon,
+    required String text,
+    String? adLabel,
+    required bool isEnabled,
+    required Color color,
+    VoidCallback? onTap,
+    double? iconSizeMultiplier,
+    double? textSizeMultiplier,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: ResponsiveUtils.getResponsiveSpacing(context, 60), // Fixed height for all buttons
+        padding: EdgeInsets.symmetric(
+          horizontal: ResponsiveUtils.getResponsiveSpacing(context, 2),
+          vertical: ResponsiveUtils.getResponsiveSpacing(context, 1),
+        ),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Icon row
+            Icon(
+              icon,
+              color: AppConstants.textPrimaryColor,
+              size: ResponsiveUtils.getResponsiveIconSize(context) * (iconSizeMultiplier ?? 0.7),
+            ),
+            SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 1.5)),
+            // Text row
+            Text(
+              text,
+              style: TextStyle(
+                fontFamily: AppConstants.primaryFontFamily,
+                fontSize: ResponsiveUtils.getSolutionButtonFontSize(context) * (textSizeMultiplier ?? 1.0),
+                fontWeight: AppConstants.boldWeight,
                 color: AppConstants.textPrimaryColor,
-                size: ResponsiveUtils.getResponsiveIconSize(context) * 0.8,
               ),
-              SizedBox(
-                width: ResponsiveUtils.getResponsiveSpacing(context, 8),
-              ),
+              textAlign: TextAlign.center,
+            ),
+            // Ad label row (only if adLabel is provided)
+            if (adLabel != null) ...[
+              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 2)),
               Text(
-                'Play Again',
+                adLabel,
                 style: TextStyle(
-                  fontFamily: AppConstants.primaryFontFamily,
-                  fontSize: ResponsiveUtils.getSolutionButtonFontSize(context) * 1.2,
-                  fontWeight: AppConstants.boldWeight,
-                  color: AppConstants.textPrimaryColor,
+                  fontFamily: AppConstants.secondaryFontFamily,
+                  fontSize: ResponsiveUtils.getSolutionButtonFontSize(context) * 0.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppConstants.textPrimaryColor.withOpacity(0.8),
                 ),
                 textAlign: TextAlign.center,
               ),
             ],
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayAgainButton() {
+    return Center(
+      child: SizedBox(
+        width: ResponsiveUtils.getResponsiveSpacing(context, 120), // Further reduced width for play again button
+        child: _buildActionButton(
+          icon: Icons.refresh,
+          text: 'Play Again',
+          adLabel: 'Watch Ad', // Add ad label for play again
+          isEnabled: true,
+          color: const Color(0xFFD69E2E), // Gold color
+          onTap: _playAgain,
+          iconSizeMultiplier: 1.0, // Larger icon
+          textSizeMultiplier: 1.0, // Larger text
         ),
       ),
     );
