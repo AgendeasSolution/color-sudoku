@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -17,12 +18,22 @@ class InterstitialAdService {
   /// Test ad unit ID for development
   static const String _testAdUnitId = 'ca-app-pub-3940256099942544/1033173712';
   
-  /// Production ad unit ID from AdMob console
-  static const String _productionAdUnitId = 'ca-app-pub-3772142815301617/2131337021';
+  /// Production ad unit IDs from AdMob console
+  static const String _productionAdUnitIdAndroid = 'ca-app-pub-3772142815301617/2131337021';
+  static const String _productionAdUnitIdIOS = 'ca-app-pub-3772142815301617/5952466188';
+
+  /// Get the appropriate ad unit ID based on platform
+  static String get _productionAdUnitId {
+    if (Platform.isIOS) {
+      return _productionAdUnitIdIOS;
+    } else {
+      return _productionAdUnitIdAndroid;
+    }
+  }
 
   /// Current ad unit ID (using production for live app)
   /// Change to _testAdUnitId for development/testing
-  static const String _adUnitId = _productionAdUnitId;
+  static String get _adUnitId => _productionAdUnitId;
 
   /// Check if ad is ready to show
   bool get isAdReady => _isAdReady;
