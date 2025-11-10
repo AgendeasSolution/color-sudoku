@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_constants.dart';
 
 /// Utility class for responsive design across mobile and tablet devices
 class ResponsiveUtils {
@@ -335,6 +336,70 @@ class ResponsiveUtils {
       largeMobile: 120,
       tablet: 130,
     );
+  }
+
+  /// Get responsive text style
+  static TextStyle getResponsiveTextStyle(
+    BuildContext context, {
+    required double baseFontSize,
+    FontWeight? fontWeight,
+    Color? color,
+    double? letterSpacing,
+    double? height,
+  }) {
+    final fontSize = getResponsiveFontSize(
+      context,
+      smallMobile: baseFontSize * 0.9,
+      mediumMobile: baseFontSize,
+      largeMobile: baseFontSize * 1.1,
+      tablet: baseFontSize * 1.2,
+    );
+
+    return TextStyle(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      letterSpacing: letterSpacing,
+      height: height,
+      fontFamily: AppConstants.primaryFontFamily,
+    );
+  }
+
+  /// Get responsive border radius
+  static double getResponsiveBorderRadius(BuildContext context, double baseRadius) {
+    return getResponsiveValue<double>(
+      context: context,
+      smallMobile: baseRadius * 0.9,
+      mediumMobile: baseRadius,
+      largeMobile: baseRadius * 1.1,
+      tablet: baseRadius * 1.2,
+    );
+  }
+
+  /// Get responsive box shadow
+  static List<BoxShadow> getResponsiveBoxShadow(
+    BuildContext context, {
+    required Color color,
+    required double baseBlurRadius,
+    required double baseSpreadRadius,
+    required Offset baseOffset,
+  }) {
+    final blurRadius = getResponsiveValue<double>(
+      context: context,
+      smallMobile: baseBlurRadius * 0.8,
+      mediumMobile: baseBlurRadius,
+      largeMobile: baseBlurRadius * 1.2,
+      tablet: baseBlurRadius * 1.4,
+    );
+
+    return [
+      BoxShadow(
+        color: color,
+        blurRadius: blurRadius,
+        spreadRadius: baseSpreadRadius,
+        offset: baseOffset,
+      ),
+    ];
   }
 }
 

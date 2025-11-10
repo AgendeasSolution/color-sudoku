@@ -4,6 +4,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'screens/splash_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/other_game_screen.dart';
 import 'services/audio_service.dart';
 import 'constants/app_constants.dart';
 
@@ -35,6 +36,7 @@ class ColorSudokuApp extends StatefulWidget {
 class _ColorSudokuAppState extends State<ColorSudokuApp> {
   bool _showSplashScreen = true;
   bool _showGameScreen = false;
+  bool _showOtherGameScreen = false;
   int _selectedLevel = 0;
   final GlobalKey<HomeScreenState> _homeScreenKey = GlobalKey<HomeScreenState>();
 
@@ -54,9 +56,16 @@ class _ColorSudokuAppState extends State<ColorSudokuApp> {
   void _goHome() {
     setState(() {
       _showGameScreen = false;
+      _showOtherGameScreen = false;
     });
     // Refresh level progression when returning to home
     _homeScreenKey.currentState?.refreshLevelProgression();
+  }
+
+  void _onOtherGameSelected() {
+    setState(() {
+      _showOtherGameScreen = true;
+    });
   }
 
   @override
@@ -78,10 +87,15 @@ class _ColorSudokuAppState extends State<ColorSudokuApp> {
                   initialLevel: _selectedLevel,
                   onGoHome: _goHome,
                 )
-              : HomeScreen(
-                  key: _homeScreenKey,
-                  onLevelSelected: _onLevelSelected,
-                ),
+              : _showOtherGameScreen
+                  ? OtherGameScreen(
+                      onGoHome: _goHome,
+                    )
+                  : HomeScreen(
+                      key: _homeScreenKey,
+                      onLevelSelected: _onLevelSelected,
+                      onOtherGameSelected: _onOtherGameSelected,
+                    ),
       debugShowCheckedModeBanner: false,
     );
   }

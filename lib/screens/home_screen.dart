@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../constants/app_constants.dart';
 import '../services/level_progression_service.dart';
 import '../services/audio_service.dart';
@@ -61,10 +62,12 @@ class StarPatternPainter extends CustomPainter {
 
 class HomeScreen extends StatefulWidget {
   final Function(int) onLevelSelected;
+  final VoidCallback? onOtherGameSelected;
 
   const HomeScreen({
     super.key,
     required this.onLevelSelected,
+    this.onOtherGameSelected,
   });
 
   @override
@@ -265,6 +268,8 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Expanded(child: _buildLevelGrid()),
           SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 8)),
           _buildActionButtons(),
+          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 16)),
+          _buildExploreMoreGamesSection(),
         ],
       ),
     );
@@ -295,37 +300,13 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildSoundToggleButton() {
     final isSoundEnabled = AudioService().isSoundEnabled();
     
-    // Calculate fixed width based on the longer text ("Sound Off" is longer than "Sound On")
-    final longerText = 'Sound Off'; // This is longer, so we use it for fixed width
-    final textWidth = _getTextWidth(context, longerText);
-    final iconWidth = ResponsiveUtils.getResponsiveIconSize(context);
-    final spacing = ResponsiveUtils.getResponsiveSpacing(context, AppConstants.smallSpacing);
-    final padding = ResponsiveUtils.getButtonPadding(context);
-    final fixedWidth = textWidth + iconWidth + spacing + padding.horizontal + 20; // extra margin
-    
-    return GameButton(
-      iconData: isSoundEnabled ? Icons.volume_up : Icons.volume_off,
-      text: isSoundEnabled ? 'Sound On' : 'Sound Off',
+    return GameIconButton(
+      icon: isSoundEnabled ? Icons.volume_up : Icons.volume_off,
       color: AppConstants.primaryAccentColor,
       onPressed: _toggleSound,
-      fixedWidth: fixedWidth,
     );
   }
 
-  double _getTextWidth(BuildContext context, String text) {
-    final textStyle = TextStyle(
-      fontFamily: AppConstants.primaryFontFamily,
-      fontWeight: AppConstants.semiBoldWeight,
-      fontSize: ResponsiveUtils.getBodyFontSize(context),
-    );
-    final textPainter = TextPainter(
-      text: TextSpan(text: text, style: textStyle),
-      maxLines: 1,
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-    return textPainter.width;
-  }
 
   Widget _buildLogo() {
     return GradientLogo(
@@ -614,9 +595,8 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildHowToPlayButton() {
-    return GameButton(
-      icon: '🎮',
-      text: 'How to Play',
+    return GameIconButton(
+      icon: Icons.help_outline,
       color: AppConstants.warningColor,
       onPressed: _showHowToPlay,
     );
@@ -653,6 +633,77 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildExploreMoreGamesSection() {
+    return Column(
+      children: [
+        _buildExploreMoreGamesHeading(),
+        SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 8)),
+        _buildGameButtonsRow(),
+      ],
+    );
+  }
+
+  Widget _buildExploreMoreGamesHeading() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.info_outline,
+          size: ResponsiveUtils.getResponsiveIconSize(context),
+          color: AppConstants.logoPurple,
+        ),
+        SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 8)),
+        Text(
+          'Explore More Games',
+          style: TextStyle(
+            fontFamily: AppConstants.primaryFontFamily,
+            fontSize: ResponsiveUtils.getBodyFontSize(context),
+            fontWeight: AppConstants.semiBoldWeight,
+            color: AppConstants.logoPurple,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGameButtonsRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildMobileGamesButton(),
+        SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 12)),
+        _buildWebGamesButton(),
+      ],
+    );
+  }
+
+  Widget _buildMobileGamesButton() {
+    return GameButton(
+      iconData: Icons.phone_android,
+      text: 'Mobile Games',
+      color: const Color(0xFF9F7AEA), // Vibrant purple matching game theme
+      onPressed: () {
+        AudioService().playButtonClick();
+        widget.onOtherGameSelected?.call();
+      },
+    );
+  }
+
+  Widget _buildWebGamesButton() {
+    return GameButton(
+      iconData: Icons.laptop,
+      text: 'Web Games',
+      color: const Color(0xFF2196F3), // Blue matching unlocked level buttons
+      onPressed: () async {
+        AudioService().playButtonClick();
+        final url = Uri.parse('https://freegametoplay.com');
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        }
+      },
     );
   }
 }

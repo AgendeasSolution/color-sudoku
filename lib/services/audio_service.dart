@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AudioService {
   static final AudioService _instance = AudioService._internal();
   factory AudioService() => _instance;
+  static AudioService get instance => _instance;
   AudioService._internal();
 
   final AudioPlayer _player = AudioPlayer();
@@ -107,6 +108,11 @@ class AudioService {
     } catch (e) {
       // Ignore errors silently
     }
+  }
+
+  // Play mouse click sound (alias for button click)
+  Future<void> playMouseClickSound() async {
+    await playButtonClick();
   }
 
   // Dispose the audio player
