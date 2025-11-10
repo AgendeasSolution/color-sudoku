@@ -104,8 +104,13 @@ class GameIconButton extends StatelessWidget {
       style: ButtonStyle(
         backgroundColor: MaterialStateProperty.all(color),
         padding: MaterialStateProperty.all(
-          EdgeInsets.all(ResponsiveUtils.getResponsiveSpacing(context, 12)),
+          EdgeInsets.symmetric(
+            horizontal: ResponsiveUtils.getResponsiveSpacing(context, 12),
+            vertical: ResponsiveUtils.getResponsiveSpacing(context, 12),
+          ),
         ),
+        minimumSize: MaterialStateProperty.all(Size.zero),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         shape: MaterialStateProperty.all(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),

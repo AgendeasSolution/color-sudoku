@@ -1,31 +1,17 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
-
 import 'package:url_launcher/url_launcher.dart';
-
-
-
 import '../widgets/components/common/animated_background.dart';
-
 import '../widgets/components/common/banner_ad_widget.dart';
-
 import '../constants/app_constants.dart';
-
 import '../models/fgtp_app_model.dart';
-
 import '../services/audio_service.dart';
-
 import '../services/fgtp_games_service.dart';
-
+import '../services/connectivity_service.dart';
 import '../theme/app_colors.dart';
-
 import '../utils/responsive_utils.dart';
 
-
-
 /// Screen to showcase other FGTP Labs games.
-
 class OtherGameScreen extends StatefulWidget {
   final VoidCallback onGoHome;
 
@@ -34,1244 +20,737 @@ class OtherGameScreen extends StatefulWidget {
     required this.onGoHome,
   });
 
-
-
   @override
-
   State<OtherGameScreen> createState() => _OtherGameScreenState();
-
 }
 
-
-
 class _OtherGameScreenState extends State<OtherGameScreen>
-
     with TickerProviderStateMixin {
-
   late final AnimationController _bgController;
-
   late final AudioService _audioService;
-
   late final FgtpGamesService _gamesService;
-
-
+  late final ConnectivityService _connectivityService;
 
   List<FgtpApp> _games = const [];
-
   List<FgtpApp>? _cachedGames;
-
   bool _isLoading = true;
-
   bool _isOffline = false;
-
+  bool _hasNoInternet = false;
   bool _showingCachedData = false;
-
   String? _errorMessage;
 
-
-
   @override
-
   void initState() {
-
     super.initState();
-
     _bgController = AnimationController(
-
       vsync: this,
-
       duration: AppConstants.backgroundAnimationDuration,
-
     )..repeat();
-
     _audioService = AudioService.instance;
-
     _gamesService = FgtpGamesService();
-
+    _connectivityService = ConnectivityService();
+    _initializeConnectivity();
     _loadGames();
-
   }
 
+  Future<void> _initializeConnectivity() async {
+    try {
+      await _connectivityService.initialize();
+      _connectivityService.addListener(_onConnectivityChanged);
+      if (mounted) {
+        setState(() {
+          _hasNoInternet = !_connectivityService.hasInternetConnection;
+        });
+      }
+    } catch (e) {
+      // If connectivity service fails to initialize, assume we have connection
+      // and let the network request handle the error
+    }
+  }
 
+  void _onConnectivityChanged() {
+    if (mounted) {
+      final hasConnection = _connectivityService.hasInternetConnection;
+      final wasOffline = _hasNoInternet;
+      setState(() {
+        _hasNoInternet = !hasConnection;
+      });
+      // If we regain connection and were previously offline, try to reload
+      if (hasConnection && wasOffline && _errorMessage != null) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _loadGames(forceRefresh: true);
+          }
+        });
+      }
+    }
+  }
 
   @override
-
   void dispose() {
-
     _bgController.dispose();
-
+    _connectivityService.removeListener(_onConnectivityChanged);
     super.dispose();
-
   }
-
-
 
   Future<void> _loadGames({bool forceRefresh = false}) async {
-
     setState(() {
-
       if (!_isLoading) {
-
         _isLoading = true;
-
       }
-
       _errorMessage = null;
-
       _isOffline = false;
-
       if (forceRefresh) {
-
         _showingCachedData = false;
-
       }
-
     });
 
-
-
     try {
-
       final games = await _gamesService.fetchMobileGames(
-
         forceRefresh: forceRefresh,
-
       );
 
       if (!mounted) {
-
         return;
-
       }
 
       setState(() {
-
         _games = games;
-
         _cachedGames = games;
-
         _isLoading = false;
-
         _showingCachedData = false;
-
         _isOffline = false;
-
         _errorMessage = null;
-
       });
-
     } on NoInternetException {
-
       if (!mounted) {
-
         return;
-
       }
 
       if ((_cachedGames ?? const []).isNotEmpty) {
-
         setState(() {
-
           _games = _cachedGames!;
-
           _isLoading = false;
-
           _isOffline = true;
-
           _showingCachedData = true;
-
-          _errorMessage =
-
-              'No internet connection. Showing the last available games.';
-
+          _errorMessage = 'No internet connection. Showing the last available games.';
         });
-
       } else {
-
         setState(() {
-
           _isLoading = false;
-
           _isOffline = true;
-
+          _hasNoInternet = true;
           _showingCachedData = false;
-
           _errorMessage = 'No internet connection. Please try again.';
-
         });
-
       }
-
     } catch (error) {
-
       if (!mounted) {
-
         return;
-
       }
+
+      // Check if it's actually a connectivity issue
+      final hasConnection = _connectivityService.hasInternetConnection;
+      final errorString = error.toString().toLowerCase();
+      final isNetworkError = !hasConnection || 
+          errorString.contains('network') || 
+          errorString.contains('internet') || 
+          errorString.contains('connection') ||
+          errorString.contains('timeout');
 
       if ((_cachedGames ?? const []).isNotEmpty) {
-
         setState(() {
-
           _games = _cachedGames!;
-
           _isLoading = false;
-
           _showingCachedData = true;
-
-          _errorMessage =
-
-              'We had trouble loading new games. Showing cached data.';
-
+          _isOffline = isNetworkError;
+          _hasNoInternet = isNetworkError && !hasConnection;
+          _errorMessage = isNetworkError && !hasConnection
+              ? 'No internet connection. Showing the last available games.'
+              : 'We had trouble loading new games. Showing cached data.';
         });
-
       } else {
-
         setState(() {
-
           _isLoading = false;
-
           _showingCachedData = false;
-
-          _errorMessage = 'Unable to load games right now. Please retry.';
-
+          _isOffline = isNetworkError;
+          _hasNoInternet = isNetworkError && !hasConnection;
+          _errorMessage = isNetworkError && !hasConnection
+              ? 'No internet connection. Please try again.'
+              : 'Unable to load games right now. Please retry.';
         });
-
       }
-
     }
-
   }
 
-
-
   Future<void> _openStore(FgtpApp app) async {
-
     _audioService.playMouseClickSound();
 
-
-
-    final platform = Theme.of(context).platform;
-
+    // Use Platform.isIOS for more reliable iOS detection
+    final platform = Platform.isIOS 
+        ? TargetPlatform.iOS 
+        : (Platform.isAndroid ? TargetPlatform.android : Theme.of(context).platform);
     final primaryUrl = app.primaryStoreUrl(platform);
 
     final urls = [
-
       if (primaryUrl != null) primaryUrl,
-
       ...app.availableStoreUrls.where((url) => url != primaryUrl),
-
     ].map(Uri.parse);
 
-
-
     for (final uri in urls) {
-
       if (await canLaunchUrl(uri)) {
-
         await launchUrl(uri, mode: LaunchMode.externalApplication);
-
         return;
-
       }
-
     }
-
-
 
     if (!mounted) {
-
       return;
-
     }
-
-
 
     ScaffoldMessenger.of(context).showSnackBar(
-
       const SnackBar(
-
         content: Text('Store link is currently unavailable. Please try again.'),
-
       ),
-
     );
-
   }
-
-
 
   @override
-
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       backgroundColor: AppColors.background,
-
       body: SafeArea(
-
         child: Stack(
-
           children: [
-
             AnimatedBackground(controller: _bgController),
-
-            Column(  
-
+            Column(
               children: [
-
                 _buildHeader(context),
-
                 if (_showingCachedData) _buildCachedBanner(),
-
                 Expanded(
-
-                  child: Padding(
-
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-
-                    child: _buildContent(),
-
-                  ),
-
+                  child: _hasNoInternet && !_showingCachedData && _errorMessage != null
+                      ? _buildNoInternetState()
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildContent(),
+                        ),
                 ),
-
               ],
-
             ),
-
-            const Positioned(
-
-              left: 0,
-
-              right: 0,
-
-              bottom: 0,
-
-              child: BannerAdWidget(
-
-                onAdLoaded: null,
-
-                onAdFailedToLoad: null,
-
-                onAdClicked: null,
-
+            if (!(_hasNoInternet && !_showingCachedData))
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: BannerAdWidget(
+                  onAdLoaded: null,
+                  onAdFailedToLoad: null,
+                  onAdClicked: null,
+                ),
               ),
-
-            ),
-
           ],
-
         ),
-
       ),
-
     );
-
   }
-
-
 
   Widget _buildHeader(BuildContext context) {
-
     final buttonSize = ResponsiveUtils.getResponsiveSpacing(context, 44);
-
     final titleStyle = ResponsiveUtils.getResponsiveTextStyle(
-
       context,
-
       baseFontSize: 22,
-
       fontWeight: FontWeight.bold,
-
       color: AppColors.textPrimary,
-
       letterSpacing: 1.1,
-
     );
-
-
 
     return Padding(
-
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-
       child: Row(
-
         children: [
-
           SizedBox(
-
             width: buttonSize,
-
             height: buttonSize,
-
             child: ElevatedButton(
-
               onPressed: () {
-
                 AudioService.instance.playMouseClickSound();
-
                 widget.onGoHome();
-
               },
-
               style: ElevatedButton.styleFrom(
-
                 backgroundColor: AppColors.surface.withOpacity(0.7),
-
                 foregroundColor: AppColors.white,
-
                 padding: EdgeInsets.zero,
-
                 shape: RoundedRectangleBorder(
-
                   borderRadius: BorderRadius.circular(12),
-
                 ),
-
                 elevation: 4,
-
                 shadowColor: AppColors.black.withOpacity(0.3),
-
               ),
-
               child: const Icon(Icons.chevron_left, size: 26),
-
             ),
-
           ),
-
           const SizedBox(width: 16),
-
           Expanded(
-
             child: Text(
-
               'FGTP Labs',
-
               style: titleStyle,
-
               textAlign: TextAlign.center,
-
             ),
-
           ),
-
           SizedBox(width: buttonSize),
-
         ],
-
       ),
-
     );
-
   }
-
-
 
   Widget _buildCachedBanner() {
-
     final bannerColor = _isOffline
-
         ? AppColors.accent.withOpacity(0.2)
-
         : AppColors.secondary.withOpacity(0.2);
-
     final borderColor = _isOffline
-
         ? AppColors.accent.withOpacity(0.4)
-
         : AppColors.secondary.withOpacity(0.4);
-
     final textColor = _isOffline ? AppColors.accent : AppColors.secondary;
 
-
-
     return Container(
-
       margin: const EdgeInsets.symmetric(horizontal: 16),
-
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-
       decoration: BoxDecoration(
-
         color: bannerColor,
-
         borderRadius: BorderRadius.circular(10),
-
         border: Border.all(color: borderColor),
-
       ),
-
       child: Row(
-
         children: [
-
           Icon(
-
             _isOffline ? Icons.wifi_off : Icons.cloud_download,
-
             size: 18,
-
             color: textColor,
-
           ),
-
           const SizedBox(width: 10),
-
           Expanded(
-
             child: Text(
-
               _errorMessage ?? 'Showing cached data',
-
               style: TextStyle(
-
                 fontSize: 13,
-
                 color: textColor,
-
                 fontWeight: FontWeight.w600,
-
               ),
-
             ),
-
           ),
-
           if (!_isLoading)
-
             TextButton(
-
               onPressed: () => _loadGames(forceRefresh: true),
-
               style: TextButton.styleFrom(
-
                 foregroundColor: AppColors.white,
-
                 backgroundColor: AppColors.secondary,
-
-                padding:
-
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 shape: RoundedRectangleBorder(
-
                   borderRadius: BorderRadius.circular(6),
-
                 ),
-
               ),
-
               child: const Text(
-
                 'Refresh',
-
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-
               ),
-
             ),
-
         ],
-
       ),
-
     );
-
   }
-
-
 
   Widget _buildContent() {
-
     if (_isLoading) {
-
       return const Center(
-
         child: CircularProgressIndicator(
-
           valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-
         ),
-
       );
-
     }
 
-
-
-    if (_errorMessage != null && !_showingCachedData) {
-
+    if (_errorMessage != null && !_showingCachedData && !_hasNoInternet) {
       return _buildErrorState();
-
     }
-
-
 
     if (_games.isEmpty) {
-
       return _buildEmptyState();
-
     }
-
-
 
     return RefreshIndicator(
-
       color: AppColors.primary,
-
       backgroundColor: AppColors.surface,
-
       onRefresh: () => _loadGames(forceRefresh: true),
-
       child: LayoutBuilder(
-
         builder: (context, constraints) {
-
           final maxWidth = constraints.maxWidth;
-
           final crossAxisCount = _getCrossAxisCount(maxWidth);
-
           final horizontalSpacing = ResponsiveUtils.getResponsiveSpacing(
-
             context,
-
             16,
-
           );
-
           final verticalSpacing = ResponsiveUtils.getResponsiveSpacing(
-
             context,
-
             14,
-
           );
 
-
-
-          final totalHorizontalSpacing =
-
-              horizontalSpacing * (crossAxisCount - 1);
-
+          final totalHorizontalSpacing = horizontalSpacing * (crossAxisCount - 1);
           final cardWidth = (maxWidth - totalHorizontalSpacing) / crossAxisCount;
-
           final aspectRatio = _calculateCardAspectRatio(context, cardWidth);
 
-
-
           return GridView.builder(
-
             physics: const AlwaysScrollableScrollPhysics(),
-
             padding: EdgeInsets.only(
-
               left: 0,
-
               right: 0,
-
               bottom: ResponsiveUtils.getResponsiveSpacing(context, 120),
-
             ),
-
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-
               crossAxisCount: crossAxisCount,
-
               crossAxisSpacing: horizontalSpacing,
-
               mainAxisSpacing: verticalSpacing,
-
               childAspectRatio: aspectRatio,
-
             ),
-
             itemCount: _games.length,
-
             itemBuilder: (context, index) {
-
               final app = _games[index];
-
               return _GameCard(
-
                 app: app,
-
                 onTap: () => _openStore(app),
-
               );
-
             },
-
           );
-
         },
-
       ),
-
     );
-
   }
 
-
+  Widget _buildNoInternetState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.wifi_off,
+              size: 80,
+              color: AppColors.accent,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No internet connection.\nPlease try again.',
+              style: ResponsiveUtils.getResponsiveTextStyle(
+                context,
+                baseFontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: AppColors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                AudioService.instance.playButtonClick();
+                _loadGames(forceRefresh: true);
+              },
+              icon: const Icon(Icons.refresh, size: 20),
+              label: const Text(
+                'Retry',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: AppColors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildErrorState() {
-
     return Center(
-
       child: Padding(
-
         padding: const EdgeInsets.symmetric(horizontal: 24),
-
         child: Column(
-
           mainAxisAlignment: MainAxisAlignment.center,
-
           children: [
-
             Icon(
-
-              _isOffline ? Icons.wifi_off : Icons.error_outline,
-
+              Icons.error_outline,
               size: 64,
-
-              color: _isOffline ? AppColors.accent : AppColors.primary,
-
+              color: AppColors.primary,
             ),
-
             const SizedBox(height: 16),
-
             Text(
-
               _errorMessage ?? 'Something went wrong.',
-
               style: ResponsiveUtils.getResponsiveTextStyle(
-
                 context,
-
                 baseFontSize: 16,
-
                 color: AppColors.textSecondary,
-
               ),
-
               textAlign: TextAlign.center,
-
             ),
-
             const SizedBox(height: 16),
-
             ElevatedButton.icon(
-
               onPressed: () => _loadGames(forceRefresh: true),
-
               icon: const Icon(Icons.refresh),
-
               label: const Text('Retry'),
-
               style: ElevatedButton.styleFrom(
-
                 backgroundColor: AppColors.primary,
-
                 foregroundColor: AppColors.white,
-
-                padding:
-
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
-
             ),
-
           ],
-
         ),
-
       ),
-
     );
-
   }
-
-
 
   Widget _buildEmptyState() {
-
     return Center(
-
       child: Text(
-
         'More games coming soon!',
-
         style: ResponsiveUtils.getResponsiveTextStyle(
-
           context,
-
           baseFontSize: 18,
-
           color: AppColors.textSecondary,
-
         ),
-
       ),
-
     );
-
   }
-
-
 
   int _getCrossAxisCount(double maxWidth) {
-
     if (maxWidth > 1000) {
-
       return 4;
-
     }
-
     if (maxWidth > 720) {
-
       return 3;
-
     }
-
     return 2;
-
   }
 
-
-
   double _calculateCardAspectRatio(BuildContext context, double cardWidth) {
-
     final cardPadding = ResponsiveUtils.getResponsiveSpacing(context, 6);
-
     final spacing = ResponsiveUtils.getResponsiveSpacing(context, 2);
-
     final buttonHeight = ResponsiveUtils.getResponsiveSpacing(context, 36);
-
     final textStyle = ResponsiveUtils.getResponsiveTextStyle(
-
       context,
-
       baseFontSize: 16,
-
       fontWeight: FontWeight.w700,
-
       color: AppColors.textPrimary,
-
     );
 
     final fontSize = textStyle.fontSize ?? 16;
-
     final lineHeight = (textStyle.height ?? 1) * fontSize;
-
     final textHeight = lineHeight * 2;
-
     final totalHeight = ((cardPadding * 2) +
-
             cardWidth +
-
             (spacing * 2) +
-
             buttonHeight +
-
             textHeight -
-
-            ResponsiveUtils.getResponsiveSpacing(context, 12))
-
+            ResponsiveUtils.getResponsiveSpacing(context, 12) +
+            1) // Add 0.5 pixel buffer to prevent overflow
         .clamp(1, double.infinity);
 
     return cardWidth / totalHeight;
-
   }
-
 }
-
-
 
 class _GameCard extends StatelessWidget {
-
   const _GameCard({required this.app, required this.onTap});
 
-
-
   final FgtpApp app;
-
   final VoidCallback onTap;
 
-
-
   @override
-
   Widget build(BuildContext context) {
-
     final cardRadius = BorderRadius.circular(
-
       ResponsiveUtils.getResponsiveBorderRadius(context, 18),
-
     );
-
     final cardPadding = ResponsiveUtils.getResponsiveSpacing(context, 10);
-
     final spacing = ResponsiveUtils.getResponsiveSpacing(context, 6);
-
     final buttonHeight = ResponsiveUtils.getResponsiveSpacing(context, 36);
 
-
-
     return Container(
-
       decoration: BoxDecoration(
-
         color: AppColors.surface.withOpacity(0.9),
-
         borderRadius: cardRadius,
-
         border: Border.all(
-
           color: AppColors.border.withOpacity(0.6),
-
           width: 1.5,
-
         ),
-
         boxShadow: [
-
           BoxShadow(
-
             color: AppColors.black.withOpacity(0.18),
-
             blurRadius: 12,
-
             offset: const Offset(0, 6),
-
           ),
-
         ],
-
       ),
-
       child: Padding(
-
         padding: EdgeInsets.all(cardPadding),
-
         child: Column(
-
           crossAxisAlignment: CrossAxisAlignment.stretch,
-
           children: [
-
             AspectRatio(
-
               aspectRatio: 1,
-
               child: ClipRRect(
-
                 borderRadius: BorderRadius.circular(
-
-                  ResponsiveUtils.getResponsiveBorderRadius(
-
-                    context,
-
-                    14,
-
-                  ),
-
+                  ResponsiveUtils.getResponsiveBorderRadius(context, 14),
                 ),
-
                 child: Container(
-
                   decoration: BoxDecoration(
-
                     gradient: LinearGradient(
-
                       colors: AppColors.surfaceGradient,
-
                       begin: Alignment.topLeft,
-
                       end: Alignment.bottomRight,
-
                     ),
-
                   ),
-
                   child: app.imageUrl.isNotEmpty
-
                       ? Image.network(
-
                           app.imageUrl,
-
                           fit: BoxFit.cover,
-
                           errorBuilder: (context, error, stackTrace) =>
-
                               _PlaceholderArtwork(name: app.name),
-
                           loadingBuilder: (context, child, loadingProgress) {
-
                             if (loadingProgress == null) {
-
                               return child;
-
                             }
-
                             return const Center(
-
                               child: CircularProgressIndicator(
-
                                 valueColor: AlwaysStoppedAnimation<Color>(
-
                                   AppColors.primary,
-
                                 ),
-
                               ),
-
                             );
-
                           },
-
                         )
-
                       : _PlaceholderArtwork(name: app.name),
-
                 ),
-
               ),
-
             ),
-
             SizedBox(height: spacing),
-
             Text(
-
               app.name,
-
               textAlign: TextAlign.center,
-
               maxLines: 2,
-
               overflow: TextOverflow.ellipsis,
-
               style: ResponsiveUtils.getResponsiveTextStyle(
-
                 context,
-
                 baseFontSize: 16,
-
                 fontWeight: FontWeight.w700,
-
                 color: AppColors.textPrimary,
-
               ),
-
             ),
-
             SizedBox(height: spacing),
-
             SizedBox(
-
               height: buttonHeight,
-
               child: ElevatedButton(
-
                 onPressed: onTap,
-
                 style: ElevatedButton.styleFrom(
-
                   backgroundColor: AppColors.transparent,
-
                   shadowColor: AppColors.transparent,
-
                   padding: EdgeInsets.zero,
-
                   shape: RoundedRectangleBorder(
-
                     borderRadius: BorderRadius.circular(
-
                       ResponsiveUtils.getResponsiveBorderRadius(context, 10),
-
                     ),
-
                   ),
-
                 ).copyWith(
-
                   elevation: ButtonStyleButton.allOrNull(0.0),
-
                   overlayColor: MaterialStateProperty.resolveWith(
-
                     (states) => states.contains(MaterialState.pressed)
-
                         ? AppColors.white.withOpacity(0.12)
-
                         : null,
-
                   ),
-
                 ),
-
                 child: Ink(
-
                   decoration: BoxDecoration(
-
                     gradient: const LinearGradient(
-
                       colors: AppColors.buttonGradient,
-
                       begin: Alignment.topLeft,
-
                       end: Alignment.bottomRight,
-
                     ),
-
                     borderRadius: BorderRadius.circular(
-
                       ResponsiveUtils.getResponsiveBorderRadius(context, 10),
-
                     ),
-
                     boxShadow: ResponsiveUtils.getResponsiveBoxShadow(
-
                       context,
-
                       color: AppColors.accent.withOpacity(0.25),
-
                       baseBlurRadius: 12,
-
                       baseSpreadRadius: 0,
-
                       baseOffset: const Offset(0, 6),
-
                     ),
-
                   ),
-
                   child: Container(
-
                     alignment: Alignment.center,
-
                     padding: EdgeInsets.symmetric(
-
-                      horizontal:
-
-                          ResponsiveUtils.getResponsiveSpacing(context, 12),
-
+                      horizontal: ResponsiveUtils.getResponsiveSpacing(context, 12),
                     ),
-
                     child: Row(
-
                       mainAxisAlignment: MainAxisAlignment.center,
-
                       mainAxisSize: MainAxisSize.min,
-
                       children: [
-
                         const Icon(Icons.play_arrow, size: 20, color: AppColors.white),
-
                         SizedBox(
-
                           width: ResponsiveUtils.getResponsiveSpacing(context, 6),
-
                         ),
-
                         Text(
-
                           'Play Now',
-
                           style: ResponsiveUtils.getResponsiveTextStyle(
-
                             context,
-
                             baseFontSize: 14,
-
                             fontWeight: FontWeight.w600,
-
                             color: AppColors.white,
-
                             letterSpacing: 0.4,
-
                           ),
-
                         ),
-
                       ],
-
                     ),
-
                   ),
-
                 ),
-
               ),
-
             ),
-
           ],
-
         ),
-
       ),
-
     );
-
   }
-
 }
 
-
-
 class _PlaceholderArtwork extends StatelessWidget {
-
   const _PlaceholderArtwork({required this.name});
-
-
 
   final String name;
 
-
-
   @override
-
   Widget build(BuildContext context) {
-
     return Container(
-
       color: AppColors.surfaceLight,
-
       child: Center(
-
         child: Text(
-
           name,
-
           textAlign: TextAlign.center,
-
           maxLines: 2,
-
           overflow: TextOverflow.ellipsis,
-
           style: ResponsiveUtils.getResponsiveTextStyle(
-
             context,
-
             baseFontSize: 14,
-
             fontWeight: FontWeight.bold,
-
             color: AppColors.white.withOpacity(0.85),
-
           ),
-
         ),
-
       ),
-
     );
-
   }
-
 }

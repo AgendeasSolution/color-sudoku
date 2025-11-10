@@ -223,16 +223,11 @@ class _AdBannerState extends State<AdBanner> {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: widget.height ?? 60.0, // Increased height for better ad display
-      margin: const EdgeInsets.only(
-        left: 8.0,
-        right: 8.0,
-        top: 4.0,
-        bottom: 16.0, // Added extra bottom margin for better spacing
-      ),
+      height: widget.height ?? 60.0,
+      margin: EdgeInsets.zero,
       decoration: BoxDecoration(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(4.0), // Slight rounded corners
+        borderRadius: BorderRadius.zero,
       ),
       child: _buildAdContent(),
     );
@@ -247,11 +242,8 @@ class _AdBannerState extends State<AdBanner> {
       return Container(
         width: double.infinity,
         height: widget.height ?? 60.0,
-        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0), // Inner padding
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(4.0),
-          child: AdWidget(ad: _bannerAd!),
-        ),
+        padding: EdgeInsets.zero,
+        child: AdWidget(ad: _bannerAd!),
       );
     }
 

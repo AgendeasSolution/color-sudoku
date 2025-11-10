@@ -172,20 +172,21 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             child: Stack(
               children: [
-                Column(
+                // Main content that can scroll
+                Stack(
                   children: [
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          _buildAnimatedBackground(),
-                          SafeArea(
-                            child: _buildHomeContent(),
-                          ),
-                        ],
-                      ),
+                    _buildAnimatedBackground(),
+                    SafeArea(
+                      child: _buildHomeContent(),
                     ),
-                    const AdBanner(),
                   ],
+                ),
+                // Ad banner positioned at bottom, transparent
+                const Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: AdBanner(),
                 ),
                 if (_showHowToPlayModal) _buildHowToPlayModal(),
               ],
@@ -253,36 +254,45 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildHomeContent() {
-    return Padding(
+    return SingleChildScrollView(
       padding: ResponsiveUtils.getResponsivePadding(context),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Add margin-top to logo
+          // Logo
           Padding(
             padding: EdgeInsets.only(
               top: ResponsiveUtils.getResponsiveSpacing(context, 16),
             ),
             child: _buildLogo(),
           ),
-          SizedBox(height: ResponsiveUtils.getGameElementSpacing(context) + ResponsiveUtils.getResponsiveSpacing(context, 8)),
-          Expanded(child: _buildLevelGrid()),
-          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 8)),
+          SizedBox(height: ResponsiveUtils.getGameElementSpacing(context)),
+          // Level Grid
+          _buildLevelGrid(),
+          // Action Buttons (How to Play and Sound)
           _buildActionButtons(),
-          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 16)),
+          // Explore More Games Section
           _buildExploreMoreGamesSection(),
+          // Bottom padding to prevent content from being hidden behind ad banner (60px ad height + some spacing)
+          SizedBox(height: 80),
         ],
       ),
     );
   }
 
   Widget _buildActionButtons() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildHowToPlayButton(),
-        SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 12)),
-        _buildSoundToggleButton(),
-      ],
+    return Padding(
+      padding: EdgeInsets.only(
+        top: ResponsiveUtils.getResponsiveSpacing(context, 32),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildHowToPlayButton(),
+          SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 12)),
+          _buildSoundToggleButton(),
+        ],
+      ),
     );
   }
 
@@ -637,12 +647,17 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildExploreMoreGamesSection() {
-    return Column(
-      children: [
-        _buildExploreMoreGamesHeading(),
-        SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 8)),
-        _buildGameButtonsRow(),
-      ],
+    return Padding(
+      padding: EdgeInsets.only(
+        top: ResponsiveUtils.getResponsiveSpacing(context, 24),
+      ),
+      child: Column(
+        children: [
+          _buildExploreMoreGamesHeading(),
+          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 8)),
+          _buildGameButtonsRow(),
+        ],
+      ),
     );
   }
 
@@ -652,15 +667,15 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       children: [
         Icon(
           Icons.info_outline,
-          size: ResponsiveUtils.getResponsiveIconSize(context),
+          size: ResponsiveUtils.getResponsiveIconSize(context) * 1.2,
           color: AppConstants.logoPurple,
         ),
-        SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 8)),
+        SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 6)),
         Text(
           'Explore More Games',
           style: TextStyle(
             fontFamily: AppConstants.primaryFontFamily,
-            fontSize: ResponsiveUtils.getBodyFontSize(context),
+            fontSize: ResponsiveUtils.getBodyFontSize(context) * 1.2,
             fontWeight: AppConstants.semiBoldWeight,
             color: AppConstants.logoPurple,
           ),
