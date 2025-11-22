@@ -4,3 +4,4 @@ export 'interstitial_ad_service.dart';
 export 'rewarded_ad_service.dart';
 export 'audio_service.dart';
 export 'connectivity_service.dart';
+export 'update_service.dart';

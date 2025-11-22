@@ -9,6 +9,7 @@ import 'screens/home_screen.dart';
 import 'screens/other_game_screen.dart';
 import 'services/audio_service.dart';
 import 'constants/app_constants.dart';
+import 'widgets/components/update_banner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -93,21 +94,38 @@ class _ColorSudokuAppState extends State<ColorSudokuApp> {
       ),
       home: _showSplashScreen
           ? SplashScreen(onSplashComplete: _onSplashComplete)
-          : _showGameScreen
-              ? GameScreen(
-                  initialLevel: _selectedLevel,
-                  onGoHome: _goHome,
-                )
-              : _showOtherGameScreen
-                  ? OtherGameScreen(
-                      onGoHome: _goHome,
-                    )
-                  : HomeScreen(
-                      key: _homeScreenKey,
-                      onLevelSelected: _onLevelSelected,
-                      onOtherGameSelected: _onOtherGameSelected,
-                    ),
+          : _buildAppWithUpdateBanner(),
       debugShowCheckedModeBanner: false,
+    );
+  }
+
+  Widget _buildAppWithUpdateBanner() {
+    final currentScreen = _showGameScreen
+        ? GameScreen(
+            initialLevel: _selectedLevel,
+            onGoHome: _goHome,
+          )
+        : _showOtherGameScreen
+            ? OtherGameScreen(
+                onGoHome: _goHome,
+              )
+            : HomeScreen(
+                key: _homeScreenKey,
+                onLevelSelected: _onLevelSelected,
+                onOtherGameSelected: _onOtherGameSelected,
+              );
+
+    return Stack(
+      children: [
+        currentScreen,
+        // Update banner positioned at bottom
+        const Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: UpdateBanner(),
+        ),
+      ],
     );
   }
 }

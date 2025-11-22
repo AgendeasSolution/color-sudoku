@@ -4,6 +4,7 @@ class AppConstants {
   // App Information
   static const String appName = 'Color Sudoku';
   static const String appDescription = 'Color Puzzle Adventure';
+  static const String appVersion = '1.0.2'; // Update this when version changes in pubspec.yaml
   
   // Colors
   static const Map<String, Color> allColors = {
