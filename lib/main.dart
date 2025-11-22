@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'screens/splash_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/home_screen.dart';
@@ -10,6 +11,12 @@ import 'constants/app_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize OneSignal
+  OneSignal.initialize("efc06e02-58d6-416a-9f9d-a3f9559cd734");
+  
+  // Request permission to send push notifications (iOS only)
+  OneSignal.Notifications.requestPermission(true);
   
   // Initialize Google Mobile Ads
   await MobileAds.instance.initialize();

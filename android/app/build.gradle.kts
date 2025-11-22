@@ -3,6 +3,8 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Add the Google services Gradle plugin
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -43,6 +45,41 @@ flutter {
     source = "../.."
 }
 
+repositories {
+    google()
+    mavenCentral()
+    // IronSource Maven repository
+    maven { url = uri("https://android-sdk.is.com/") }
+    // AppLovin Maven repository
+    maven { url = uri("https://artifacts.applovin.com/android") }
+}
+
 dependencies {
     implementation("com.facebook.android:facebook-android-sdk:[8,9)")
+    
+    // Import the Firebase BoM
+    implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
+    
+    // When using the BoM, don't specify versions in Firebase dependencies
+    // Add the dependencies for Firebase products you want to use
+    implementation("com.google.firebase:firebase-analytics")
+    
+    // Add the dependencies for any other desired Firebase products
+    // https://firebase.google.com/docs/android/setup#available-libraries
+    
+    // Unity Ads + Google mediation adapter
+    implementation("com.unity3d.ads:unity-ads:4.9.1")
+    implementation("com.google.ads.mediation:unity:4.9.1.0")
+    
+    // ironSource + Google mediation adapter
+    implementation("com.ironsource.sdk:mediationsdk:8.4.0")
+    implementation("com.google.ads.mediation:ironsource:8.4.0.0")
+    
+    // AppLovin (MAX) + Google mediation adapter
+    implementation("com.applovin:applovin-sdk:13.0.0")
+    implementation("com.google.ads.mediation:applovin:13.0.0.0")
+    
+    // Meta / Facebook Audience Network + Google mediation adapter
+    implementation("com.facebook.android:audience-network-sdk:6.16.0")
+    implementation("com.google.ads.mediation:facebook:6.16.0.0")
 }
