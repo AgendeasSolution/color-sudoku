@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
@@ -14,26 +16,65 @@ import 'widgets/components/update_banner.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await Firebase.initializeApp();
+  // Set up global error handling
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    if (kReleaseMode) {
+      // In production, log to crash reporting service
+      debugPrint('Flutter Error: ${details.exception}');
+    }
+  };
   
-  // Initialize OneSignal
-  OneSignal.initialize("efc06e02-58d6-416a-9f9d-a3f9559cd734");
+  // Handle errors from async operations
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Platform Error: $error');
+    return true; // Prevent app from crashing
+  };
   
-  // Request permission to send push notifications (iOS only)
-  OneSignal.Notifications.requestPermission(true);
+  // Initialize Firebase with error handling
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase initialization error: $e');
+    // Continue app launch even if Firebase fails
+  }
   
-  // Initialize Google Mobile Ads
-  await MobileAds.instance.initialize();
+  // Initialize OneSignal with error handling
+  try {
+    OneSignal.initialize("efc06e02-58d6-416a-9f9d-a3f9559cd734");
+    // Request permission to send push notifications (iOS only)
+    OneSignal.Notifications.requestPermission(true);
+  } catch (e) {
+    debugPrint('OneSignal initialization error: $e');
+    // Continue app launch even if OneSignal fails
+  }
   
-  // Initialize audio service
-  await AudioService().initialize();
+  // Initialize Google Mobile Ads with error handling
+  try {
+    await MobileAds.instance.initialize();
+  } catch (e) {
+    debugPrint('MobileAds initialization error: $e');
+    // Continue app launch even if ads fail
+  }
+  
+  // Initialize audio service with error handling
+  try {
+    await AudioService().initialize();
+  } catch (e) {
+    debugPrint('AudioService initialization error: $e');
+    // Continue app launch even if audio fails
+  }
   
   // Set preferred orientations to portrait only
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  try {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  } catch (e) {
+    debugPrint('SystemChrome orientation error: $e');
+    // Continue app launch even if orientation setting fails
+  }
   
   runApp(const ColorSudokuApp());
 }
@@ -60,6 +101,11 @@ class _ColorSudokuAppState extends State<ColorSudokuApp> {
   }
 
   void _onLevelSelected(int levelIndex) {
+    // Validate level index before proceeding
+    if (levelIndex < 0 || levelIndex >= AppConstants.levelConfig.length) {
+      debugPrint('Invalid level index: $levelIndex');
+      return;
+    }
     setState(() {
       _selectedLevel = levelIndex;
       _showGameScreen = true;
@@ -83,6 +129,47 @@ class _ColorSudokuAppState extends State<ColorSudokuApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Set up error widget builder before building MaterialApp
+    ErrorWidget.builder = (FlutterErrorDetails details) {
+      if (kDebugMode) {
+        return ErrorWidget(details.exception);
+      }
+      // In release mode, show a safe fallback UI
+      return Material(
+        child: Container(
+          color: AppConstants.backgroundColor,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: AppConstants.textPrimaryColor,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Something went wrong',
+                  style: TextStyle(
+                    color: AppConstants.textPrimaryColor,
+                    fontSize: 18,
+                  ),
+                ),
+                SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    // Try to recover by going to home
+                    _goHome();
+                  },
+                  child: Text('Go Home'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    };
+    
     return MaterialApp(
       title: AppConstants.appName,
       theme: ThemeData(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/update_service.dart';
 import '../../constants/app_constants.dart';
@@ -111,12 +112,17 @@ class _UpdateBannerState extends State<UpdateBanner> with SingleTickerProviderSt
   }
 
   Future<void> _openStore() async {
-    final storeUrl = UpdateService.getStoreUrl();
-    if (storeUrl.isNotEmpty) {
-      final uri = Uri.parse(storeUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      final storeUrl = UpdateService.getStoreUrl();
+      if (storeUrl.isNotEmpty) {
+        final uri = Uri.parse(storeUrl);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
       }
+    } catch (e) {
+      // Silently handle errors - user can manually go to store if needed
+      debugPrint('Error opening store: $e');
     }
   }
 

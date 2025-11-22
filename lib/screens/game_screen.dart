@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../constants/app_constants.dart';
 import '../models/cell_position.dart';
 import '../models/game_state.dart';
@@ -64,6 +65,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   
   // Track which color ball is being animated
   String? _animatingColor;
+  
+  // Timer for solution animation
+  Timer? _solutionAnimationTimer;
 
   @override
   void initState() {
@@ -103,6 +107,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    // Cancel solution animation timer if running
+    _solutionAnimationTimer?.cancel();
+    _solutionAnimationTimer = null;
+    
     _bgAnimationController.dispose();
     _modalAnimationController.dispose();
     _shakeAnimationController.dispose();
@@ -212,8 +220,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         }
       });
       
-      final pos = _gameState.path[_gameState.currentStep];
-      _showInvalidMoveWarning(pos, color);
+      // Safe bounds checking for path access
+      if (_gameState.currentStep >= 0 && _gameState.currentStep < _gameState.path.length) {
+        final pos = _gameState.path[_gameState.currentStep];
+        _showInvalidMoveWarning(pos, color);
+      }
       return;
     }
 
@@ -285,35 +296,65 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _animateSolution(List<List<String?>> completeSolution) {
+    // Cancel any existing timer
+    _solutionAnimationTimer?.cancel();
+    
     // Get the current path
     final path = _gameState.path;
+    
+    // Validate solution dimensions
+    if (completeSolution.length != _gameState.gridSize ||
+        completeSolution.any((row) => row.length != _gameState.gridSize)) {
+      debugPrint('Solution dimensions do not match grid size');
+      return;
+    }
     
     // Start animation
     int currentIndex = 0;
     
     // Timer to animate each cell
-    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    _solutionAnimationTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      // Check if widget is still mounted
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
       if (currentIndex >= path.length) {
         timer.cancel();
+        _solutionAnimationTimer = null;
         // Mark game as over after animation completes
-        setState(() {
-          _gameState = _gameState.copyWith(isGameOver: true);
-        });
+        if (mounted) {
+          setState(() {
+            _gameState = _gameState.copyWith(isGameOver: true);
+          });
+        }
         return;
       }
       
       final pos = path[currentIndex];
       
-      // Only animate cells that are currently empty (not pre-filled)
-      if (_gameState.gridState[pos.row][pos.col] == null) {
-        final color = completeSolution[pos.row][pos.col];
+      // Bounds checking for grid access
+      if (pos.row >= 0 && pos.row < _gameState.gridSize &&
+          pos.col >= 0 && pos.col < _gameState.gridSize &&
+          pos.row < _gameState.gridState.length &&
+          pos.col < _gameState.gridState[pos.row].length &&
+          pos.row < completeSolution.length &&
+          pos.col < completeSolution[pos.row].length) {
         
-        setState(() {
-          final newGridState = _gameState.gridState.map((row) => List<String?>.from(row)).toList();
-          newGridState[pos.row][pos.col] = color;
+        // Only animate cells that are currently empty (not pre-filled)
+        if (_gameState.gridState[pos.row][pos.col] == null) {
+          final color = completeSolution[pos.row][pos.col];
           
-          _gameState = _gameState.copyWith(gridState: newGridState);
-        });
+          if (mounted) {
+            setState(() {
+              final newGridState = _gameState.gridState.map((row) => List<String?>.from(row)).toList();
+              newGridState[pos.row][pos.col] = color;
+              
+              _gameState = _gameState.copyWith(gridState: newGridState);
+            });
+          }
+        }
       }
       
       currentIndex++;
@@ -835,7 +876,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     final row = index ~/ _gameState.gridSize;
                     final col = index % _gameState.gridSize;
                     final isNextCell = nextPos != null && nextPos.row == row && nextPos.col == col;
-                    final colorName = _gameState.gridState[row][col];
+                    
+                    // Safe bounds checking for grid access
+                    String? colorName;
+                    if (row >= 0 && row < _gameState.gridState.length &&
+                        col >= 0 && col < _gameState.gridState[row].length) {
+                      colorName = _gameState.gridState[row][col];
+                    }
+                    
                     final isPrefilled = _gameState.preFilledCells.contains('$row,$col');
                     
                     // Check if this cell is a conflicting cell
@@ -950,7 +998,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: rowColors.map((colorName) {
-              final count = _gameState.ballCounts[colorName]!;
+              // Safe access to ballCounts with default value
+              final count = _gameState.ballCounts[colorName] ?? 0;
               final isAnimating = _animatingColor == colorName;
               
               return Padding(
@@ -974,7 +1023,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       );
                     },
                     child: ColorBall(
-                      color: _colors[colorName]!,
+                      color: _colors[colorName] ?? Colors.grey,
                       count: count,
                       showShadow: false,
                       size: ballSize,

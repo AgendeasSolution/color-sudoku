@@ -6,7 +6,14 @@ class ValidationUtils {
     GameState gameState,
     String color,
   ) {
-    if (gameState.isGameOver || gameState.ballCounts[color]! <= 0) {
+    // Safe null checking for ballCounts
+    final ballCount = gameState.ballCounts[color] ?? 0;
+    if (gameState.isGameOver || ballCount <= 0) {
+      return false;
+    }
+
+    // Safe bounds checking for path access
+    if (gameState.currentStep < 0 || gameState.currentStep >= gameState.path.length) {
       return false;
     }
 
@@ -49,7 +56,7 @@ class ValidationUtils {
     );
     
     return gameState.colorNames.any((color) =>
-        gameState.ballCounts[color]! > 0 && !invalidColors.contains(color)
+        (gameState.ballCounts[color] ?? 0) > 0 && !invalidColors.contains(color)
     );
   }
 }

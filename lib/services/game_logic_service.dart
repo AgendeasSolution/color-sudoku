@@ -488,11 +488,24 @@ class GameLogicService {
     GameState currentState,
     String color,
   ) {
-    if (currentState.isGameOver || currentState.ballCounts[color]! <= 0) {
+    // Safe null checking for ballCounts
+    final ballCount = currentState.ballCounts[color] ?? 0;
+    if (currentState.isGameOver || ballCount <= 0) {
+      return currentState;
+    }
+
+    // Safe bounds checking for path access
+    if (currentState.currentStep < 0 || currentState.currentStep >= currentState.path.length) {
       return currentState;
     }
 
     final pos = currentState.path[currentState.currentStep];
+    
+    // Safe bounds checking for grid access
+    if (pos.row < 0 || pos.row >= currentState.gridState.length ||
+        pos.col < 0 || pos.col >= currentState.gridState[pos.row].length) {
+      return currentState;
+    }
     
     // Check if this cell is already filled (pre-filled or already placed)
     if (currentState.gridState[pos.row][pos.col] != null) {
@@ -515,7 +528,8 @@ class GameLogicService {
 
     // Update ball counts
     final newBallCounts = Map<String, int>.from(currentState.ballCounts);
-    newBallCounts[color] = newBallCounts[color]! - 1;
+    final currentCount = newBallCounts[color] ?? 0;
+    newBallCounts[color] = currentCount > 0 ? currentCount - 1 : 0;
 
     // Move to next empty position
     final nextStep = updateCurrentStepForPrefilledCells(currentState.path, newGridState);

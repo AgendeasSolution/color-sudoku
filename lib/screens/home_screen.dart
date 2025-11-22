@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../constants/app_constants.dart';
 import '../services/level_progression_service.dart';
@@ -360,6 +361,11 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildLevelButton(int levelIndex) {
+    // Bounds checking for level config
+    if (levelIndex < 0 || levelIndex >= AppConstants.levelConfig.length) {
+      return const SizedBox.shrink();
+    }
+    
     final level = AppConstants.levelConfig[levelIndex];
     final isUnlocked = _unlockedLevels.contains(levelIndex);
     final isCompleted = _completedLevels.contains(levelIndex);
@@ -411,9 +417,9 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     SizedBox(height: ResponsiveUtils.getResponsiveSpacing(context, 4)),
                     
-                    // Grid size - plain text
+                    // Grid size - plain text with safe access
                     Text(
-                      '${level['gridSize']}×${level['gridSize']}',
+                      '${level['gridSize'] ?? '?'}×${level['gridSize'] ?? '?'}',
                       style: TextStyle(
                         fontFamily: AppConstants.secondaryFontFamily,
                         fontSize: ResponsiveUtils.getLevelGridSizeFontSize(context),
@@ -731,9 +737,14 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       color: const Color(0xFF2196F3), // Blue matching unlocked level buttons
       onPressed: () async {
         AudioService().playButtonClick();
-        final url = Uri.parse('https://freegametoplay.com');
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
+        try {
+          final url = Uri.parse('https://freegametoplay.com');
+          if (await canLaunchUrl(url)) {
+            await launchUrl(url, mode: LaunchMode.externalApplication);
+          }
+        } catch (e) {
+          // Silently handle errors - user can manually navigate if needed
+          debugPrint('Error opening web games: $e');
         }
       },
     );
