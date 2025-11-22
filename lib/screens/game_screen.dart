@@ -305,7 +305,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     // Validate solution dimensions
     if (completeSolution.length != _gameState.gridSize ||
         completeSolution.any((row) => row.length != _gameState.gridSize)) {
-      debugPrint('Solution dimensions do not match grid size');
       return;
     }
     

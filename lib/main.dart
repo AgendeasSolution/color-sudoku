@@ -19,15 +19,10 @@ void main() async {
   // Set up global error handling
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    if (kReleaseMode) {
-      // In production, log to crash reporting service
-      debugPrint('Flutter Error: ${details.exception}');
-    }
   };
   
   // Handle errors from async operations
   PlatformDispatcher.instance.onError = (error, stack) {
-    debugPrint('Platform Error: $error');
     return true; // Prevent app from crashing
   };
   
@@ -35,7 +30,6 @@ void main() async {
   try {
     await Firebase.initializeApp();
   } catch (e) {
-    debugPrint('Firebase initialization error: $e');
     // Continue app launch even if Firebase fails
   }
   
@@ -45,7 +39,6 @@ void main() async {
     // Request permission to send push notifications (iOS only)
     OneSignal.Notifications.requestPermission(true);
   } catch (e) {
-    debugPrint('OneSignal initialization error: $e');
     // Continue app launch even if OneSignal fails
   }
   
@@ -53,7 +46,6 @@ void main() async {
   try {
     await MobileAds.instance.initialize();
   } catch (e) {
-    debugPrint('MobileAds initialization error: $e');
     // Continue app launch even if ads fail
   }
   
@@ -61,7 +53,6 @@ void main() async {
   try {
     await AudioService().initialize();
   } catch (e) {
-    debugPrint('AudioService initialization error: $e');
     // Continue app launch even if audio fails
   }
   
@@ -72,7 +63,6 @@ void main() async {
       DeviceOrientation.portraitDown,
     ]);
   } catch (e) {
-    debugPrint('SystemChrome orientation error: $e');
     // Continue app launch even if orientation setting fails
   }
   
@@ -103,7 +93,6 @@ class _ColorSudokuAppState extends State<ColorSudokuApp> {
   void _onLevelSelected(int levelIndex) {
     // Validate level index before proceeding
     if (levelIndex < 0 || levelIndex >= AppConstants.levelConfig.length) {
-      debugPrint('Invalid level index: $levelIndex');
       return;
     }
     setState(() {
@@ -201,12 +190,6 @@ class _ColorSudokuAppState extends State<ColorSudokuApp> {
                 key: _homeScreenKey,
                 onLevelSelected: _onLevelSelected,
                 onOtherGameSelected: _onOtherGameSelected,
-                onTestUpdateBanner: () {
-                  // Increment counter to trigger the banner
-                  setState(() {
-                    _updateBannerTrigger++;
-                  });
-                },
               );
 
     return Stack(
