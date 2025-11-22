@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import FBSDKCoreKit
+import FirebaseCore
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -8,6 +9,9 @@ import FBSDKCoreKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Initialize Firebase
+    FirebaseApp.configure()
+    
     GeneratedPluginRegistrant.register(with: self)
     ApplicationDelegate.shared.application(application, didFinishLaunchingWithOptions: launchOptions)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
