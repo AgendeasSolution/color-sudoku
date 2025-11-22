@@ -51,6 +51,7 @@ class _ColorSudokuAppState extends State<ColorSudokuApp> {
   bool _showOtherGameScreen = false;
   int _selectedLevel = 0;
   final GlobalKey<HomeScreenState> _homeScreenKey = GlobalKey<HomeScreenState>();
+  int _updateBannerTrigger = 0;
 
   void _onSplashComplete() {
     setState(() {
@@ -113,17 +114,46 @@ class _ColorSudokuAppState extends State<ColorSudokuApp> {
                 key: _homeScreenKey,
                 onLevelSelected: _onLevelSelected,
                 onOtherGameSelected: _onOtherGameSelected,
+                onTestUpdateBanner: () {
+                  // Increment counter to trigger the banner
+                  setState(() {
+                    _updateBannerTrigger++;
+                  });
+                },
               );
 
     return Stack(
       children: [
         currentScreen,
-        // Update banner positioned at bottom
-        const Positioned(
+        // Backdrop overlay for tap outside to dismiss
+        if (_updateBannerTrigger > 0)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {
+                // Dismiss banner when tapping outside
+                setState(() {
+                  _updateBannerTrigger = 0;
+                });
+              },
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+              ),
+            ),
+          ),
+        // Update banner positioned at bottom - full width, no margin
+        Positioned(
           left: 0,
           right: 0,
           bottom: 0,
-          child: UpdateBanner(),
+          child: UpdateBanner(
+            forceShow: _updateBannerTrigger > 0,
+            triggerKey: _updateBannerTrigger,
+            onDismiss: () {
+              setState(() {
+                _updateBannerTrigger = 0;
+              });
+            },
+          ),
         ),
       ],
     );

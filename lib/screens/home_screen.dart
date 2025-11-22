@@ -63,11 +63,13 @@ class StarPatternPainter extends CustomPainter {
 class HomeScreen extends StatefulWidget {
   final Function(int) onLevelSelected;
   final VoidCallback? onOtherGameSelected;
+  final VoidCallback? onTestUpdateBanner;
 
   const HomeScreen({
     super.key,
     required this.onLevelSelected,
     this.onOtherGameSelected,
+    this.onTestUpdateBanner,
   });
 
   @override
@@ -291,6 +293,10 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _buildHowToPlayButton(),
           SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 12)),
           _buildSoundToggleButton(),
+          if (widget.onTestUpdateBanner != null) ...[
+            SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, 12)),
+            _buildTestUpdateButton(),
+          ],
         ],
       ),
     );
@@ -314,6 +320,17 @@ class HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       icon: isSoundEnabled ? Icons.volume_up : Icons.volume_off,
       color: AppConstants.primaryAccentColor,
       onPressed: _toggleSound,
+    );
+  }
+
+  Widget _buildTestUpdateButton() {
+    return GameIconButton(
+      icon: Icons.system_update,
+      color: AppConstants.warningColor,
+      onPressed: () {
+        AudioService().playButtonClick();
+        widget.onTestUpdateBanner?.call();
+      },
     );
   }
 
