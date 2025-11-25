@@ -9,8 +9,8 @@ import FirebaseCore
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Initialize Firebase
-    FirebaseApp.configure()
+    // Firebase will be initialized in Flutter/Dart code
+    // This avoids double initialization conflicts
     
     GeneratedPluginRegistrant.register(with: self)
     ApplicationDelegate.shared.application(application, didFinishLaunchingWithOptions: launchOptions)

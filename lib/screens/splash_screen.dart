@@ -48,15 +48,21 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   void _startSplashSequence() async {
     // Start logo animation
-    _logoAnimationController.forward();
+    if (mounted) {
+      _logoAnimationController.forward();
+    }
     
     // Wait a bit then start text animation
     await Future.delayed(const Duration(milliseconds: 500));
-    _textAnimationController.forward();
+    if (mounted) {
+      _textAnimationController.forward();
+    }
     
     // Wait for splash duration then complete
     await Future.delayed(AppConstants.splashScreenDuration);
-    widget.onSplashComplete();
+    if (mounted) {
+      widget.onSplashComplete();
+    }
   }
 
   @override

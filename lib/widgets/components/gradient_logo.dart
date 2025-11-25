@@ -23,39 +23,57 @@ class GradientLogo extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Main logo text with gradient
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF63B3ED), // #63b3ed (blue)
-              Color(0xFF9F7AEA), // #9f7aea (purple)
-              Color(0xFFED8936), // #ed8936 (orange)
-              Color(0xFF38B2AC), // #38b2ac (teal)
-            ],
-            stops: [0.0, 0.33, 0.66, 1.0],
-          ).createShader(bounds),
-          child: Text(
-            AppConstants.appName,
-            textAlign: textAlign,
-            style: GoogleFonts.orbitron(
-              fontSize: fontSize ?? AppConstants.titleFontSize,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 3.0,
-              color: Colors.white, // This will be overridden by the gradient
-              shadows: [
-                const Shadow(
-                  blurRadius: 20,
-                  color: Color(0xCC63B3ED), // rgba(99, 179, 237, 0.8) (blue glow)
+        // Main logo text with gradient - wrapped to ensure single line and responsive
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final maxWidth = constraints.maxWidth > 0 
+                ? constraints.maxWidth 
+                : MediaQuery.of(context).size.width;
+            
+            return ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF63B3ED), // #63b3ed (blue)
+                  Color(0xFF9F7AEA), // #9f7aea (purple)
+                  Color(0xFFED8936), // #ed8936 (orange)
+                  Color(0xFF38B2AC), // #38b2ac (teal)
+                ],
+                stops: [0.0, 0.33, 0.66, 1.0],
+              ).createShader(bounds),
+              child: SizedBox(
+                width: maxWidth,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.center,
+                  child: Text(
+                    AppConstants.appName,
+                    textAlign: textAlign,
+                    maxLines: 1,
+                    overflow: TextOverflow.visible,
+                    softWrap: false,
+                    style: GoogleFonts.orbitron(
+                      fontSize: fontSize ?? AppConstants.titleFontSize,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 3.0,
+                      color: Colors.white, // This will be overridden by the gradient
+                      shadows: [
+                        const Shadow(
+                          blurRadius: 20,
+                          color: Color(0xCC63B3ED), // rgba(99, 179, 237, 0.8) (blue glow)
+                        ),
+                        const Shadow(
+                          blurRadius: 40,
+                          color: Color(0x6663B3ED), // rgba(99, 179, 237, 0.4) (lighter blue glow)
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const Shadow(
-                  blurRadius: 40,
-                  color: Color(0x6663B3ED), // rgba(99, 179, 237, 0.4) (lighter blue glow)
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
         // Subtitle
         if (showSubtitle) ...[

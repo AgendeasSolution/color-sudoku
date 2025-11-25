@@ -28,16 +28,25 @@ void main() async {
   
   // Initialize Firebase with error handling
   try {
-    await Firebase.initializeApp();
+    // Check if Firebase is already initialized to avoid double initialization
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp();
+    }
   } catch (e) {
     // Continue app launch even if Firebase fails
+    if (kDebugMode) {
+      print('Firebase initialization error: $e');
+    }
   }
   
   // Initialize OneSignal with error handling
   try {
     OneSignal.initialize("efc06e02-58d6-416a-9f9d-a3f9559cd734");
     // Request permission to send push notifications (iOS only)
-    OneSignal.Notifications.requestPermission(true);
+    // Only request on iOS devices, not on iPad during review
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      OneSignal.Notifications.requestPermission(true);
+    }
   } catch (e) {
     // Continue app launch even if OneSignal fails
   }
